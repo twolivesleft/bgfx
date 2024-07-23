@@ -1,6 +1,6 @@
 /*
  * Copyright 2013 Jeremie Roy. All rights reserved.
- * License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
+ * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
  */
 
 #include "../common.h"
@@ -541,7 +541,7 @@ void TextBuffer::appendGlyph(FontHandle _handle, CodePoint _codePoint, bool shad
 		m_previousCodePoint = 0;
 		return;
 	}
-    
+
 	const FontInfo& font = m_fontManager->getFontInfo(_handle);
 
 	if (_codePoint == L'\n')
@@ -555,7 +555,7 @@ void TextBuffer::appendGlyph(FontHandle _handle, CodePoint _codePoint, bool shad
 		m_previousCodePoint = 0;
 		return;
 	}
-    
+
 	//is there a change of font size that require the text on the left to be centered again ?
 	if (font.ascender > m_lineAscender
 	|| (font.descender < m_lineDescender) )
@@ -579,15 +579,12 @@ void TextBuffer::appendGlyph(FontHandle _handle, CodePoint _codePoint, bool shad
 	const Atlas* atlas = m_fontManager->getAtlas();
 	const AtlasRegion& atlasRegion = atlas->getRegion(glyph->regionIndex);
 
-    GlyphModifier modifier {0, 0, 0, 0, 1, 1, 0, false, m_textColor, m_textColor, m_textColor, m_textColor};
-    if (_modifier) modifier = *_modifier;
-        
 	if (shadow)
 	{
 		if (atlasRegion.getType() != AtlasRegion::TYPE_BGRA8)
 		{
-			float extraXOffset = m_dropShadowOffset[0] + modifier.offsetX;
-			float extraYOffset = m_dropShadowOffset[1] - modifier.offsetY;
+			float extraXOffset = m_dropShadowOffset[0];
+			float extraYOffset = m_dropShadowOffset[1];
 
 			float x0 = m_penX + (glyph->offset_x) + extraXOffset;
 			float y0 = (m_penY + m_lineAscender + (glyph->offset_y) + extraYOffset );
@@ -637,8 +634,8 @@ void TextBuffer::appendGlyph(FontHandle _handle, CodePoint _codePoint, bool shad
 	if (m_styleFlags & STYLE_BACKGROUND
 	&&  m_backgroundColor & 0xff000000)
 	{
-		float x0 = (m_penX - kerning) + modifier.offsetX;
-		float y0 = (m_penY) - modifier.offsetY;
+		float x0 = (m_penX - kerning);
+		float y0 = (m_penY);
 		float x1 = ( (float)x0 + (glyph->advance_x) );
 		float y1 = (m_penY + m_lineAscender - m_lineDescender + m_lineGap);
 
@@ -696,8 +693,8 @@ void TextBuffer::appendGlyph(FontHandle _handle, CodePoint _codePoint, bool shad
 	if (m_styleFlags & STYLE_OVERLINE
 	&&  m_overlineColor & 0xFF000000)
 	{
-		float x0 = (m_penX - kerning) + modifier.offsetX;
-		float y0 = (m_penY) - modifier.offsetY;
+		float x0 = (m_penX - kerning);
+		float y0 = (m_penY);
 		float x1 = ( (float)x0 + (glyph->advance_x) );
 		float y1 = y0 + font.underlineThickness;
 
@@ -722,6 +719,35 @@ void TextBuffer::appendGlyph(FontHandle _handle, CodePoint _codePoint, bool shad
 		m_indexCount += 6;
 	}
 
+	if (m_styleFlags & STYLE_STRIKE_THROUGH
+	&&  m_strikeThroughColor & 0xFF000000)
+	{
+		float x0 = (m_penX - kerning);
+		float y0 = (m_penY + 0.666667f * font.ascender);
+		float x1 = ( (float)x0 + (glyph->advance_x) );
+		float y1 = y0 + font.underlineThickness;
+
+		atlas->packUV(blackGlyph.regionIndex
+			, (uint8_t*)m_vertexBuffer
+			, sizeof(TextVertex) * m_vertexCount + offsetof(TextVertex, u)
+			, sizeof(TextVertex)
+			);
+
+		setVertex(m_vertexCount + 0, x0, y0, m_strikeThroughColor, STYLE_STRIKE_THROUGH);
+		setVertex(m_vertexCount + 1, x0, y1, m_strikeThroughColor, STYLE_STRIKE_THROUGH);
+		setVertex(m_vertexCount + 2, x1, y1, m_strikeThroughColor, STYLE_STRIKE_THROUGH);
+		setVertex(m_vertexCount + 3, x1, y0, m_strikeThroughColor, STYLE_STRIKE_THROUGH);
+
+		m_indexBuffer[m_indexCount + 0] = m_vertexCount + 0;
+		m_indexBuffer[m_indexCount + 1] = m_vertexCount + 1;
+		m_indexBuffer[m_indexCount + 2] = m_vertexCount + 2;
+		m_indexBuffer[m_indexCount + 3] = m_vertexCount + 0;
+		m_indexBuffer[m_indexCount + 4] = m_vertexCount + 2;
+		m_indexBuffer[m_indexCount + 5] = m_vertexCount + 3;
+		m_vertexCount += 4;
+		m_indexCount += 6;
+	}
+
 	if (!shadow  &&  atlasRegion.getType() == AtlasRegion::TYPE_BGRA8)
 	{
 		bx::memSet(&m_vertexBuffer[m_vertexCount], 0, sizeof(TextVertex) * 4);
@@ -735,15 +761,15 @@ void TextBuffer::appendGlyph(FontHandle _handle, CodePoint _codePoint, bool shad
 		float glyphScale = glyph->bitmapScale;
 		float glyphWidth = glyph->width * glyphScale;
 		float glyphHeight = glyph->height * glyphScale;
-		float x0 = m_penX + (glyph->offset_x) + modifier.offsetX;
-		float y0 = (m_penY + (font.ascender + -font.descender - glyphHeight) / 2) - modifier.offsetY;
+		float x0 = m_penX + (glyph->offset_x);
+		float y0 = (m_penY + (font.ascender + -font.descender - glyphHeight) / 2);
 		float x1 = (x0 + glyphWidth);
 		float y1 = (y0 + glyphHeight);
 
-		setVertex(m_vertexCount + 0, x0, y0, modifier.colors[0]);
-		setVertex(m_vertexCount + 1, x0, y1, modifier.colors[1]);
-		setVertex(m_vertexCount + 2, x1, y1, modifier.colors[2]);
-		setVertex(m_vertexCount + 3, x1, y0, modifier.colors[3]);
+		setVertex(m_vertexCount + 0, x0, y0, m_textColor);
+		setVertex(m_vertexCount + 1, x0, y1, m_textColor);
+		setVertex(m_vertexCount + 2, x1, y1, m_textColor);
+		setVertex(m_vertexCount + 3, x1, y0, m_textColor);
 	}
 	else if (!shadow)
 	{
@@ -755,15 +781,15 @@ void TextBuffer::appendGlyph(FontHandle _handle, CodePoint _codePoint, bool shad
 			, sizeof(TextVertex)
 			);
 
-		float x0 = m_penX + (glyph->offset_x) + modifier.offsetX;
-		float y0 = (m_penY + m_lineAscender + (glyph->offset_y) ) - modifier.offsetY;
+		float x0 = m_penX + (glyph->offset_x);
+		float y0 = (m_penY + m_lineAscender + (glyph->offset_y) );
 		float x1 = (x0 + glyph->width);
 		float y1 = (y0 + glyph->height);
 
-		setVertex(m_vertexCount + 0, x0, y0, modifier.colors[0]);
-		setVertex(m_vertexCount + 1, x0, y1, modifier.colors[1]);
-		setVertex(m_vertexCount + 2, x1, y1, modifier.colors[2]);
-		setVertex(m_vertexCount + 3, x1, y0, modifier.colors[3]);
+		setVertex(m_vertexCount + 0, x0, y0, m_textColor);
+		setVertex(m_vertexCount + 1, x0, y1, m_textColor);
+		setVertex(m_vertexCount + 2, x1, y1, m_textColor);
+		setVertex(m_vertexCount + 3, x1, y0, m_textColor);
 
 		setOutlineColor(m_vertexCount + 0, m_outlineColor);
 		setOutlineColor(m_vertexCount + 1, m_outlineColor);
@@ -771,7 +797,7 @@ void TextBuffer::appendGlyph(FontHandle _handle, CodePoint _codePoint, bool shad
 		setOutlineColor(m_vertexCount + 3, m_outlineColor);
 	}
 
-	m_indexBuffer[m_indexCount + 0] = m_vertexCount + 0;
+    m_indexBuffer[m_indexCount + 0] = m_vertexCount + 0;
 	m_indexBuffer[m_indexCount + 1] = m_vertexCount + 1;
 	m_indexBuffer[m_indexCount + 2] = m_vertexCount + 2;
 	m_indexBuffer[m_indexCount + 3] = m_vertexCount + 0;
@@ -780,35 +806,6 @@ void TextBuffer::appendGlyph(FontHandle _handle, CodePoint _codePoint, bool shad
 	m_vertexCount += 4;
 	m_indexCount += 6;
 
-    if (m_styleFlags & STYLE_STRIKE_THROUGH
-    &&  m_strikeThroughColor & 0xFF000000)
-    {
-        float x0 = (m_penX - kerning) + modifier.offsetX;
-        float y0 = (m_penY + 0.666667f * font.ascender) - modifier.offsetY;
-        float x1 = ( (float)x0 + (glyph->advance_x) );
-        float y1 = y0 + font.underlineThickness;
-
-        atlas->packUV(blackGlyph.regionIndex
-            , (uint8_t*)m_vertexBuffer
-            , sizeof(TextVertex) * m_vertexCount + offsetof(TextVertex, u)
-            , sizeof(TextVertex)
-            );
-
-        setVertex(m_vertexCount + 0, x0, y0, m_strikeThroughColor, STYLE_STRIKE_THROUGH);
-        setVertex(m_vertexCount + 1, x0, y1, m_strikeThroughColor, STYLE_STRIKE_THROUGH);
-        setVertex(m_vertexCount + 2, x1, y1, m_strikeThroughColor, STYLE_STRIKE_THROUGH);
-        setVertex(m_vertexCount + 3, x1, y0, m_strikeThroughColor, STYLE_STRIKE_THROUGH);
-
-        m_indexBuffer[m_indexCount + 0] = m_vertexCount + 0;
-        m_indexBuffer[m_indexCount + 1] = m_vertexCount + 1;
-        m_indexBuffer[m_indexCount + 2] = m_vertexCount + 2;
-        m_indexBuffer[m_indexCount + 3] = m_vertexCount + 0;
-        m_indexBuffer[m_indexCount + 4] = m_vertexCount + 2;
-        m_indexBuffer[m_indexCount + 5] = m_vertexCount + 3;
-        m_vertexCount += 4;
-        m_indexCount += 6;
-    }
-    
 	m_penX += glyph->advance_x;
 	if (m_penX > m_rectangle.width)
 	{

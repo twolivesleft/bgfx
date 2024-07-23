@@ -1,6 +1,6 @@
 /*
  * Copyright 2013 Jeremie Roy. All rights reserved.
- * License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
+ * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
  */
 
 #include <bx/bx.h>
@@ -522,7 +522,9 @@ float FontManager::getKerning(FontHandle _handle, CodePoint _prevCodePoint, Code
 	if (isValid(cachedFont.masterFontHandle))
 	{
 		CachedFont& baseFont = m_cachedFonts[cachedFont.masterFontHandle.idx];
-		return baseFont.trueTypeFont->m_scale * stbtt_GetCodepointKernAdvance(&baseFont.trueTypeFont->m_font, _prevCodePoint, _codePoint);
+		return baseFont.trueTypeFont->m_scale 
+			* stbtt_GetCodepointKernAdvance(&baseFont.trueTypeFont->m_font, _prevCodePoint, _codePoint)
+			* cachedFont.fontInfo.scale;
 	}
 	else
 	{

@@ -1,6 +1,11 @@
 /*
+<<<<<<< HEAD
  * Copyright 2011-2019 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
+=======
+ * Copyright 2011-2024 Branimir Karadzic. All rights reserved.
+ * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
+>>>>>>> upstream/master
  */
 
 #ifndef IMGUI_H_HEADER_GUARD
@@ -75,6 +80,19 @@ namespace ImGui
 #define IMGUI_FLAGS_NONE        UINT8_C(0x00)
 #define IMGUI_FLAGS_ALPHA_BLEND UINT8_C(0x01)
 
+<<<<<<< HEAD
+=======
+	///
+	inline ImTextureID toId(bgfx::TextureHandle _handle, uint8_t _flags, uint8_t _mip)
+	{
+		union { struct { bgfx::TextureHandle handle; uint8_t flags; uint8_t mip; } s; ImTextureID id; } tex;
+		tex.s.handle = _handle;
+		tex.s.flags  = _flags;
+		tex.s.mip    = _mip;
+		return tex.id;
+	}
+
+>>>>>>> upstream/master
 	// Helper function for passing bgfx::TextureHandle to ImGui::Image.
 	inline void Image(bgfx::TextureHandle _handle
 		, uint8_t _flags
@@ -112,16 +130,19 @@ namespace ImGui
 		, const ImVec2& _size
 		, const ImVec2& _uv0     = ImVec2(0.0f, 0.0f)
 		, const ImVec2& _uv1     = ImVec2(1.0f, 1.0f)
-		, int _framePadding      = -1
 		, const ImVec4& _bgCol   = ImVec4(0.0f, 0.0f, 0.0f, 0.0f)
 		, const ImVec4& _tintCol = ImVec4(1.0f, 1.0f, 1.0f, 1.0f)
 		)
 	{
+<<<<<<< HEAD
 		union { struct { bgfx::TextureHandle handle; uint8_t flags; uint8_t mip; } s; ImTextureID ptr; } texture;
 		texture.s.handle = _handle;
 		texture.s.flags  = _flags;
 		texture.s.mip    = _mip;
 		return ImageButton(texture.ptr, _size, _uv0, _uv1, _framePadding, _bgCol, _tintCol);
+=======
+		return ImageButton("image", toId(_handle, _flags, _mip), _size, _uv0, _uv1, _bgCol, _tintCol);
+>>>>>>> upstream/master
 	}
 
 	// Helper function for passing bgfx::TextureHandle to ImGui::ImageButton.
@@ -129,26 +150,35 @@ namespace ImGui
 		, const ImVec2& _size
 		, const ImVec2& _uv0     = ImVec2(0.0f, 0.0f)
 		, const ImVec2& _uv1     = ImVec2(1.0f, 1.0f)
-		, int _framePadding      = -1
 		, const ImVec4& _bgCol   = ImVec4(0.0f, 0.0f, 0.0f, 0.0f)
 		, const ImVec4& _tintCol = ImVec4(1.0f, 1.0f, 1.0f, 1.0f)
 		)
 	{
-		return ImageButton(_handle, IMGUI_FLAGS_ALPHA_BLEND, 0, _size, _uv0, _uv1, _framePadding, _bgCol, _tintCol);
+		return ImageButton(_handle, IMGUI_FLAGS_ALPHA_BLEND, 0, _size, _uv0, _uv1, _bgCol, _tintCol);
 	}
 
+	///
 	inline void NextLine()
 	{
 		SetCursorPosY(GetCursorPosY() + GetTextLineHeightWithSpacing() );
 	}
 
+	///
 	inline bool MouseOverArea()
 	{
 		return false
+			|| ImGui::IsAnyItemActive()
 			|| ImGui::IsAnyItemHovered()
 			|| ImGui::IsWindowHovered(ImGuiHoveredFlags_AnyWindow)
+//			|| ImGuizmo::IsOver()
 			;
 	}
+
+	///
+	void PushEnabled(bool _enabled);
+
+	///
+	void PopEnabled();
 
 } // namespace ImGui
 
