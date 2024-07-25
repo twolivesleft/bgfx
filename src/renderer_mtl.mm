@@ -548,11 +548,11 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 				);
 			m_numWindows = 1;
 
-#if BX_PLATFORM_VISIONOS
-			if (NULL == m_mainFrameBuffer.m_swapChain->m_layerRenderer)
-#else
+//#if BX_PLATFORM_VISIONOS
+//			if (NULL == m_mainFrameBuffer.m_swapChain->m_layerRenderer)
+//#else
 			if (NULL == m_mainFrameBuffer.m_swapChain->m_metalLayer)
-#endif // BX_PLATFORM_VISIONOS
+//#endif // BX_PLATFORM_VISIONOS
 			{
 				release(m_device);
 				return false;
@@ -1055,11 +1055,11 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 
 		MTLPixelFormat getSwapChainPixelFormat(SwapChainMtl *swapChain)
 		{
-#if BX_PLATFORM_VISIONOS
-			return MTLPixelFormatBGRA8Unorm_sRGB;
-#else
+//#if BX_PLATFORM_VISIONOS
+//			return MTLPixelFormatBGRA8Unorm_sRGB;
+//#else
 			return swapChain->m_metalLayer.pixelFormat;
-#endif // BX_PLATFORM_VISIONOS
+//#endif // BX_PLATFORM_VISIONOS
 		}
 
 		void readTexture(TextureHandle _handle, void* _data, uint8_t _mip) override
@@ -1478,14 +1478,14 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 
 					if (NULL != frameBuffer.m_swapChain->m_drawable)
 					{
-#if BX_PLATFORM_VISIONOS
-						cp_frame_start_submission(frameBuffer.m_swapChain->m_frame);
-						cp_drawable_encode_present(frameBuffer.m_swapChain->m_drawable, m_commandBuffer);
-						cp_frame_end_submission(frameBuffer.m_swapChain->m_frame);
-#else
+//#if BX_PLATFORM_VISIONOS
+//						cp_frame_start_submission(frameBuffer.m_swapChain->m_frame);
+//						cp_drawable_encode_present(frameBuffer.m_swapChain->m_drawable, m_commandBuffer);
+//						cp_frame_end_submission(frameBuffer.m_swapChain->m_frame);
+//#else
 						m_commandBuffer.presentDrawable(frameBuffer.m_swapChain->m_drawable);
 						MTL_RELEASE(frameBuffer.m_swapChain->m_drawable);
-#endif // BX_PLATFORM_VISIONOS
+//#endif // BX_PLATFORM_VISIONOS
 					}
 				}
 			}
@@ -3392,12 +3392,12 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 
 	SwapChainMtl::~SwapChainMtl()
 	{
-#if BX_PLATFORM_VISIONOS
-		MTL_RELEASE(m_layerRenderer);
-#else
+//#if BX_PLATFORM_VISIONOS
+//		MTL_RELEASE(m_layerRenderer);
+//#else
 		MTL_RELEASE(m_metalLayer);
 		MTL_RELEASE(m_drawable);
-#endif // BX_PLATFORM_VISIONOS
+//#endif // BX_PLATFORM_VISIONOS
 
 		MTL_RELEASE(m_drawableTexture);
 
@@ -3413,13 +3413,13 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 
 	void SwapChainMtl::init(void* _nwh)
 	{
-#if BX_PLATFORM_VISIONOS
-		{
-			cp_layer_renderer_t layerRenderer = (cp_layer_renderer_t)_nwh;
-			m_layerRenderer = layerRenderer;
-			retain(m_layerRenderer);
-		}
-#else
+//#if BX_PLATFORM_VISIONOS
+//		{
+//			cp_layer_renderer_t layerRenderer = (cp_layer_renderer_t)_nwh;
+//			m_layerRenderer = layerRenderer;
+//			retain(m_layerRenderer);
+//		}
+//#else
 		if (m_metalLayer)
 		{
 			release(m_metalLayer);
@@ -3439,7 +3439,7 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 		if (NULL != NSClassFromString(@"CAMetalLayer") )
 		{
 			if (NULL == m_metalLayer)
-#	if BX_PLATFORM_IOS
+#	if BX_PLATFORM_IOS || BX_PLATFORM_VISIONOS
 			{
 				CAMetalLayer* metalLayer = (CAMetalLayer*)_nwh;
 				if (NULL == metalLayer
@@ -3524,7 +3524,7 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 		m_metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
 		m_metalLayer.magnificationFilter = kCAFilterNearest;
 		retain(m_metalLayer);
-#endif // BX_PLATFORM_VISIONOS
+//#endif // BX_PLATFORM_VISIONOS
 
 		m_nwh = _nwh;
 	}
@@ -3551,13 +3551,13 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 #	endif // __MAC_OS_X_VERSION_MAX_ALLOWED >= 101300
 #endif // BX_PLATFORM_OSX
 
-#if !BX_PLATFORM_VISIONOS
+//#if !BX_PLATFORM_VISIONOS
 		m_metalLayer.drawableSize = CGSizeMake(_width, _height);
 		m_metalLayer.pixelFormat  = (_flags & BGFX_RESET_SRGB_BACKBUFFER)
 			? MTLPixelFormatBGRA8Unorm_sRGB
 			: MTLPixelFormatBGRA8Unorm
 			;
-#endif // BX_PLATFORM_VISIONOS
+//#endif // BX_PLATFORM_VISIONOS
 
 		TextureDescriptor desc = s_renderMtl->m_textureDescriptor;
 
@@ -3617,20 +3617,20 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 
 		if (sampleCount > 1)
 		{
-#if BX_PLATFORM_VISIONOS
-			desc.pixelFormat = MTLPixelFormatBGRA8Unorm_sRGB;
-#else
+//#if BX_PLATFORM_VISIONOS
+//			desc.pixelFormat = MTLPixelFormatBGRA8Unorm_sRGB;
+//#else
 			desc.pixelFormat = m_metalLayer.pixelFormat;
-#endif // BX_PLATFORM_VISIONOS
+//#endif // BX_PLATFORM_VISIONOS
 			m_backBufferColorMsaa = s_renderMtl->m_device.newTextureWithDescriptor(desc);
 		}
 
 		bx::HashMurmur2A murmur;
 		murmur.begin();
 		murmur.add(1);
-#if !BX_PLATFORM_VISIONOS
+//#if !BX_PLATFORM_VISIONOS
 		murmur.add( (uint32_t)m_metalLayer.pixelFormat);
-#endif // !BX_PLATFORM_VISIONOS
+//#endif // !BX_PLATFORM_VISIONOS
 		murmur.add( (uint32_t)m_backBufferDepth.pixelFormat() );
 		murmur.add( (uint32_t)m_backBufferStencil.pixelFormat() );
 		murmur.add( (uint32_t)sampleCount);
@@ -3641,24 +3641,24 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 	{
 		if (NULL == m_drawableTexture)
 		{
-#if BX_PLATFORM_VISIONOS
-			m_frame = cp_layer_renderer_query_next_frame(m_layerRenderer);
-			if (m_frame)
-			{
-				m_drawable = cp_frame_query_drawable(m_frame);
-			}
-#else
+//#if BX_PLATFORM_VISIONOS
+//			m_frame = cp_layer_renderer_query_next_frame(m_layerRenderer);
+//			if (m_frame)
+//			{
+//				m_drawable = cp_frame_query_drawable(m_frame);
+//			}
+//#else
 			m_drawable = m_metalLayer.nextDrawable;
-#endif // BX_PLATFORM_VISIONOS
+//#endif // BX_PLATFORM_VISIONOS
 
 			if (m_drawable != NULL)
 			{
-#if BX_PLATFORM_VISIONOS
-				m_drawableTexture = cp_drawable_get_color_texture(m_drawable, 0);
-#else
+//#if BX_PLATFORM_VISIONOS
+//				m_drawableTexture = cp_drawable_get_color_texture(m_drawable, 0);
+//#else
 				m_drawableTexture = m_drawable.texture;
 				retain(m_drawable); // keep alive to be useable at 'flip'
-#endif // BX_PLATFORM_VISIONOS
+//#endif // BX_PLATFORM_VISIONOS
 
 				retain(m_drawableTexture);
 			}
@@ -3667,13 +3667,13 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 				TextureDescriptor desc = s_renderMtl->m_textureDescriptor;
 				desc.textureType = MTLTextureType2D;
 
-#if BX_PLATFORM_VISIONOS
-				desc.pixelFormat = MTLPixelFormatBGRA8Unorm_sRGB;
-#else
+//#if BX_PLATFORM_VISIONOS
+//				desc.pixelFormat = MTLPixelFormatBGRA8Unorm_sRGB;
+//#else
 				desc.pixelFormat = m_metalLayer.pixelFormat;
 				desc.width  = m_metalLayer.drawableSize.width;
 				desc.height = m_metalLayer.drawableSize.height;
-#endif // BX_PLATFORM_VISIONOS
+//#endif // BX_PLATFORM_VISIONOS
 
 				desc.depth  = 1;
 				desc.mipmapLevelCount = 1;
