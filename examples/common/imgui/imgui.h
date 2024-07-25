@@ -1,11 +1,6 @@
 /*
-<<<<<<< HEAD
- * Copyright 2011-2019 Branimir Karadzic. All rights reserved.
- * License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
-=======
  * Copyright 2011-2024 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
->>>>>>> upstream/master
  */
 
 #ifndef IMGUI_H_HEADER_GUARD
@@ -20,38 +15,39 @@
 #define IMGUI_MBUT_RIGHT  0x02
 #define IMGUI_MBUT_MIDDLE 0x04
 
+// TODO: John, had to add this struct declaration to the header file
 struct OcornutImguiContext
 {
-    void create(float _fontSize, bx::AllocatorI* _allocator);
-    void destroy();
-    void beginFrame(
-          int32_t _mx
-        , int32_t _my
-        , uint8_t _button
-        , int32_t _scroll
-        , int _width
-        , int _height
-        , char _inputChar
-        , bgfx::ViewId _viewId);
-    void endFrame();
-    void render(ImDrawData* _drawData);
-    void setupStyle(bool _dark);
-    
-    ImGuiIO& io();
-    
-    ImGuiContext*       m_imgui;
-    ImGuizmo::Context* m_imguizmo;
-    bx::AllocatorI*     m_allocator;
-    bgfx::VertexLayout    m_decl;
-    bgfx::ProgramHandle m_program;
-    bgfx::ProgramHandle m_imageProgram;
-    bgfx::TextureHandle m_texture;
-    bgfx::UniformHandle s_tex;
-    bgfx::UniformHandle u_imageLodEnabled;
-    ImFont* m_font[ImGui::Font::Count];
-    int64_t m_last;
-    int32_t m_lastScroll;
-    bgfx::ViewId m_viewId;
+	void render(ImDrawData* _drawData);
+	void create(float _fontSize, bx::AllocatorI* _allocator);
+	void destroy();
+	void setupStyle(bool _dark);
+	void beginFrame(
+		  int32_t _mx
+		, int32_t _my
+		, uint8_t _button
+		, int32_t _scroll
+		, int _width
+		, int _height
+		, int _inputChar
+		, bgfx::ViewId _viewId);
+	void endFrame();
+
+	ImGuiContext*       m_imgui;
+	bx::AllocatorI*     m_allocator;
+	bgfx::VertexLayout  m_layout;
+	bgfx::ProgramHandle m_program;
+	bgfx::ProgramHandle m_imageProgram;
+	bgfx::TextureHandle m_texture;
+	bgfx::UniformHandle s_tex;
+	bgfx::UniformHandle u_imageLodEnabled;
+	ImFont* m_font[ImGui::Font::Count];
+	int64_t m_last;
+	int32_t m_lastScroll;
+	bgfx::ViewId m_viewId;
+#if USE_ENTRY
+	ImGuiKey m_keyMap[(int)entry::Key::Count];
+#endif // USE_ENTRY
 };
 
 inline uint32_t imguiRGBA(uint8_t _r, uint8_t _g, uint8_t _b, uint8_t _a = 255)
@@ -69,7 +65,7 @@ namespace bx { struct AllocatorI; }
 void imguiCreate(float _fontSize = 18.0f, bx::AllocatorI* _allocator = NULL);
 void imguiDestroy();
 
-void imguiBeginFrame(int32_t _mx, int32_t _my, uint8_t _button, int32_t _scroll, uint16_t _width, uint16_t _height, char _inputChar = 0, bgfx::ViewId _view = 255);
+void imguiBeginFrame(int32_t _mx, int32_t _my, uint8_t _button, int32_t _scroll, uint16_t _width, uint16_t _height, int _inputChar = -1, bgfx::ViewId _view = 255);
 void imguiEndFrame();
 
 namespace entry { class AppI; }
@@ -80,8 +76,6 @@ namespace ImGui
 #define IMGUI_FLAGS_NONE        UINT8_C(0x00)
 #define IMGUI_FLAGS_ALPHA_BLEND UINT8_C(0x01)
 
-<<<<<<< HEAD
-=======
 	///
 	inline ImTextureID toId(bgfx::TextureHandle _handle, uint8_t _flags, uint8_t _mip)
 	{
@@ -92,7 +86,6 @@ namespace ImGui
 		return tex.id;
 	}
 
->>>>>>> upstream/master
 	// Helper function for passing bgfx::TextureHandle to ImGui::Image.
 	inline void Image(bgfx::TextureHandle _handle
 		, uint8_t _flags
@@ -104,11 +97,7 @@ namespace ImGui
 		, const ImVec4& _borderCol = ImVec4(0.0f, 0.0f, 0.0f, 0.0f)
 		)
 	{
-		union { struct { bgfx::TextureHandle handle; uint8_t flags; uint8_t mip; } s; ImTextureID ptr; } texture;
-		texture.s.handle = _handle;
-		texture.s.flags  = _flags;
-		texture.s.mip    = _mip;
-		Image(texture.ptr, _size, _uv0, _uv1, _tintCol, _borderCol);
+		Image(toId(_handle, _flags, _mip), _size, _uv0, _uv1, _tintCol, _borderCol);
 	}
 
 	// Helper function for passing bgfx::TextureHandle to ImGui::Image.
@@ -134,15 +123,7 @@ namespace ImGui
 		, const ImVec4& _tintCol = ImVec4(1.0f, 1.0f, 1.0f, 1.0f)
 		)
 	{
-<<<<<<< HEAD
-		union { struct { bgfx::TextureHandle handle; uint8_t flags; uint8_t mip; } s; ImTextureID ptr; } texture;
-		texture.s.handle = _handle;
-		texture.s.flags  = _flags;
-		texture.s.mip    = _mip;
-		return ImageButton(texture.ptr, _size, _uv0, _uv1, _framePadding, _bgCol, _tintCol);
-=======
 		return ImageButton("image", toId(_handle, _flags, _mip), _size, _uv0, _uv1, _bgCol, _tintCol);
->>>>>>> upstream/master
 	}
 
 	// Helper function for passing bgfx::TextureHandle to ImGui::ImageButton.

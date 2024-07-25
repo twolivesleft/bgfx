@@ -796,6 +796,7 @@ namespace bgfx { namespace mtl
 	{
 		BufferMtl()
 			: m_flags(BGFX_BUFFER_NONE)
+			, m_dynamic(NULL)
 		{
 		}
 
@@ -818,7 +819,7 @@ namespace bgfx { namespace mtl
 		bool     m_vertex;
 
 		Buffer   m_ptr;
-        Buffer   m_temp[MTL_MAX_FRAMES_IN_FLIGHT];
+		uint8_t* m_dynamic;
 	};
 
 	typedef BufferMtl IndexBufferMtl;
@@ -1036,8 +1037,8 @@ namespace bgfx { namespace mtl
 	{
 		SwapChainMtl()
 #if BX_PLATFORM_VISIONOS
-            : m_layerRenderer(NULL)
-            , m_frame(NULL)
+			: m_layerRenderer(NULL)
+			, m_frame(NULL)
 #else
 			: m_metalLayer(nil)
 #endif
@@ -1059,12 +1060,12 @@ namespace bgfx { namespace mtl
 
 
 #if BX_PLATFORM_VISIONOS
-        cp_layer_renderer_t m_layerRenderer;
-        cp_frame_t m_frame;
-        cp_drawable_t m_drawable;
+		cp_layer_renderer_t m_layerRenderer;
+		cp_frame_t m_frame;
+		cp_drawable_t m_drawable;
 #else
 		CAMetalLayer* m_metalLayer;
-        id <CAMetalDrawable> m_drawable;
+		id <CAMetalDrawable> m_drawable;
 #endif
 		id <MTLTexture> 	 m_drawableTexture;
 		Texture m_backBufferColorMsaa;

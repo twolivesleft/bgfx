@@ -1,11 +1,6 @@
 #
-<<<<<<< HEAD
-# Copyright 2011-2019 Branimir Karadzic. All rights reserved.
-# License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause
-=======
 # Copyright 2011-2024 Branimir Karadzic. All rights reserved.
 # License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
->>>>>>> upstream/master
 #
 
 include ../../../scripts/shader-embeded.mk

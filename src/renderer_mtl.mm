@@ -363,29 +363,28 @@ namespace bgfx { namespace mtl
 	{
 		switch (_type)
 		{
-        // TODO: John This was commented out in our fork
-		case MTLDataTypeUInt:
-		case MTLDataTypeInt:
-			return UniformType::Sampler;
+		// TODO: John to re-assess
+		//case MTLDataTypeUInt:
+		//case MTLDataTypeInt:
+		//	return UniformType::Sampler;
 
 		case MTLDataTypeFloat:
-            return UniformType::Float;
+			return UniformType::Float;
 		case MTLDataTypeFloat2:
-            return UniformType::Vec2;
+			return UniformType::Vec2;
 		case MTLDataTypeFloat3:
-            return UniformType::Vec3;
+			return UniformType::Vec3;
 		case MTLDataTypeFloat4:
 			return UniformType::Vec4;
-                
-        // TODO: John to re-assess
-        case MTLDataTypeUInt:
-            return UniformType::UInt;
-                
-        case MTLDataTypeInt:
-            return UniformType::Int;
+				
+		case MTLDataTypeUInt:
+			return UniformType::UInt;
+				
+		case MTLDataTypeInt:
+			return UniformType::Int;
 
-        case MTLDataTypeBool:
-            return UniformType::Bool;
+		case MTLDataTypeBool:
+			return UniformType::Bool;
 
 		case MTLDataTypeFloat3x3:
 			return UniformType::Mat3;
@@ -1069,18 +1068,18 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 
 #if BX_PLATFORM_OSX
 			BlitCommandEncoder bce = s_renderMtl->getBlitCommandEncoder();
-            // TODO: John BGFX original code just has the else branch here
-            if (texture.m_type == TextureMtl::TextureCube)
-            {
-                for (int i = 0; i < 6; i++)
-                {
-                    bce.synchronizeTexture(texture.m_ptr, i, _mip);
-                }
-            }
-            else
-            {
-                bce.synchronizeTexture(texture.m_ptr, 0, _mip);
-            }
+			// TODO: John BGFX original code just has the else branch here
+			if (texture.m_type == TextureMtl::TextureCube)
+			{
+				for (int i = 0; i < 6; i++)
+				{
+					bce.synchronizeTexture(texture.m_ptr, i, _mip);
+				}
+			}
+			else
+			{
+				bce.synchronizeTexture(texture.m_ptr, 0, _mip);
+			}
 			endEncoding();
 #endif  // BX_PLATFORM_OSX
 
@@ -1099,19 +1098,19 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 				{ srcWidth, srcHeight, 1 },
 			};
 
-            // TODO: John BGFX original code just has the else branch here
-            if (texture.m_type == TextureMtl::TextureCube)
-            {
-                for (int i = 0; i < 6; i++)
-                {
-                    size_t offset = (srcWidth*srcHeight*bpp/8) * i;
-                    texture.m_ptr.getBytes(static_cast<char*>(_data) + offset, srcWidth*bpp/8, 0, region, _mip, i);
-                }
-            }
-            else
-            {
-                texture.m_ptr.getBytes(_data, srcWidth*bpp/8, 0, region, _mip, 0);
-            }
+			// TODO: John BGFX original code just has the else branch here
+			if (texture.m_type == TextureMtl::TextureCube)
+			{
+				for (int i = 0; i < 6; i++)
+				{
+					size_t offset = (srcWidth*srcHeight*bpp/8) * i;
+					texture.m_ptr.getBytes(static_cast<char*>(_data) + offset, srcWidth*bpp/8, 0, region, _mip, i);
+				}
+			}
+			else
+			{
+				texture.m_ptr.getBytes(_data, srcWidth*bpp/8, 0, region, _mip, 0);
+			}
 		}
 
 		void resizeTexture(TextureHandle _handle, uint16_t _width, uint16_t _height, uint8_t _numMips, uint16_t _numLayers) override
@@ -1141,17 +1140,16 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 
 			release(mem);
 		}
-        
-        // TODO: John to see whether this is still necessary (BGFX has autogen mipmaps now)
-        void generateMipmaps(TextureHandle _handle) override
-        {
-            TextureMtl& texture = m_textures[_handle.idx];
-            
-            BlitCommandEncoder bce = s_renderMtl->getBlitCommandEncoder();
-            bce.generateMipmapsForTexture(texture.m_ptr);
-            endEncoding();
 
-        }
+		// TODO: John to see whether this is still necessary (BGFX has autogen mipmaps now)
+		void generateMipmaps(TextureHandle _handle) override
+		{
+			TextureMtl& texture = m_textures[_handle.idx];
+			
+			BlitCommandEncoder bce = s_renderMtl->getBlitCommandEncoder();
+			bce.generateMipmapsForTexture(texture.m_ptr);
+
+		}
 
 		void overrideInternal(TextureHandle _handle, uintptr_t _ptr) override
 		{
@@ -1985,31 +1983,31 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 			m_fbh    = _fbh;
 			m_rtMsaa = _msaa;
 		}
-        
-        // TODO: John to see whether this is still needed?
-        void resolveFramebuffer(FrameBufferHandle _fbh)
-        {
-            // Resolve previous frame buffer and auto-gen mipmaps if needed
-            if (isValid(_fbh) && _fbh.idx != BGFX_CONFIG_MAX_FRAME_BUFFERS)
-            {
-                FrameBufferMtl& frameBuffer = m_frameBuffers[_fbh.idx];
-                                                
-                for (uint32_t ii = 0; ii < frameBuffer.m_num; ++ii)
-                {
-                    uint8_t resolve = frameBuffer.m_colorAttachment[ii].resolve;
-                    if (0 != (resolve & BGFX_RESOLVE_AUTO_GEN_MIPS))
-                    {
-                        const TextureMtl& texture = m_textures[frameBuffer.m_colorHandle[ii].idx];
-                        if (texture.m_numMips > 1)
-                        {
-                            getBlitCommandEncoder().generateMipmapsForTexture(texture.m_ptr);
-                        }
-                    }
-                }
-                
-                endEncoding();
-            }
-        }
+		
+		// TODO: John to see whether this is still needed?
+		void resolveFramebuffer(FrameBufferHandle _fbh)
+		{
+			// Resolve previous frame buffer and auto-gen mipmaps if needed
+			if (isValid(_fbh) && _fbh.idx != BGFX_CONFIG_MAX_FRAME_BUFFERS)
+			{
+				FrameBufferMtl& frameBuffer = m_frameBuffers[_fbh.idx];
+												
+				for (uint32_t ii = 0; ii < frameBuffer.m_num; ++ii)
+				{
+					uint8_t resolve = frameBuffer.m_colorAttachment[ii].resolve;
+					if (0 != (resolve & BGFX_RESOLVE_AUTO_GEN_MIPS))
+					{
+						const TextureMtl& texture = m_textures[frameBuffer.m_colorHandle[ii].idx];
+						if (texture.m_numMips > 1)
+						{
+							getBlitCommandEncoder().generateMipmapsForTexture(texture.m_ptr);
+						}
+					}
+				}
+				
+				endEncoding();
+			}
+		}
 
 		void setDepthStencilState(uint64_t _state, uint64_t _stencil = 0)
 		{
@@ -2149,10 +2147,11 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 										case MTLDataTypeFloat4:   num *= 1; break;
 										case MTLDataTypeFloat4x4: num *= 4; break;
 										case MTLDataTypeFloat3x3: num *= 3; break;
-                                        // TODO: John re-assess this
-                                        // case MTLDataTypeFloat:    num *= 1; break;
-                                        // case MTLDataTypeFloat2:    num *= 1; break;
-                                        // case MTLDataTypeFloat3:    num *= 1; break;
+										// TODO: John re-assess this
+										// case MTLDataTypeFloat:    num *= 1; break;
+										// case MTLDataTypeFloat2:    num *= 1; break;
+										// case MTLDataTypeFloat3:    num *= 1; break;
+
 
 										default:
 											BX_WARN(0, "Unsupported uniform MTLDataType: %d", uniform.dataType);
@@ -4307,9 +4306,9 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 						||  fbh.idx != _render->m_view[view].m_fbh.idx)
 						{
 							endEncoding();
-                            
-                            // TODO: John do we need to call this still?
-                            resolveFramebuffer(fbh);
+
+							// TODO: John do we need to call this still?
+							resolveFramebuffer(fbh);
 
 							RenderPassDescriptor renderPassDescriptor = newRenderPassDescriptor();
 							renderPassDescriptor.visibilityResultBuffer = m_occlusionQuery.m_buffer;
@@ -4843,53 +4842,52 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 
 					uint32_t numVertices = draw.m_numVertices;
 					uint8_t  numStreams  = 0;
-                    
-                    // TODO: John is this for particles? (original code in else branch)
-                    bool autoGeneratedVertices = draw.m_streamMask == UINT8_MAX;
-                    
-                    if (autoGeneratedVertices)
-                    {
-                        currentState.m_stream[0].m_layoutHandle = BGFX_INVALID_HANDLE;
-                        currentState.m_stream[0].m_handle = BGFX_INVALID_HANDLE;
-                        currentState.m_stream[0].m_startVertex = 0;
-                        numStreams = 0u;
-                    }
-                    else
-                    {
-                        for (uint32_t idx = 0, streamMask = draw.m_streamMask
-                            ; 0 != streamMask
-                            ; streamMask >>= 1, idx += 1, ++numStreams
-                            )
-                        {
-                            const uint32_t ntz = bx::uint32_cnttz(streamMask);
-                            streamMask >>= ntz;
-                            idx         += ntz;
+					
+					// TODO: John is this for particles? (original code in else branch)
+					bool autoGeneratedVertices = draw.m_streamMask == UINT8_MAX;
 
-                            currentState.m_stream[idx].m_layoutHandle   = draw.m_stream[idx].m_layoutHandle;
-                            currentState.m_stream[idx].m_handle         = draw.m_stream[idx].m_handle;
-                            currentState.m_stream[idx].m_startVertex    = draw.m_stream[idx].m_startVertex;
-
-                            const uint16_t handle = draw.m_stream[idx].m_handle.idx;
-
-                            const VertexBufferMtl& vb = m_vertexBuffers[handle];
-                            const uint16_t decl = isValid(draw.m_stream[idx].m_layoutHandle)
-                                ? draw.m_stream[idx].m_layoutHandle.idx
-                                : vb.m_layoutHandle.idx;
-                            const VertexLayout& layout = m_vertexLayouts[decl];
-                            const uint32_t stride = layout.m_stride;
-
-                            layouts[numStreams] = &layout;
-
-                            numVertices = bx::uint32_min(UINT32_MAX == draw.m_numVertices
-                                ? vb.m_size/stride
-                                : draw.m_numVertices
-                                , numVertices
-                                );
-                            const uint32_t offset = draw.m_stream[idx].m_startVertex * stride;
-
-                            rce.setVertexBuffer(vb.m_ptr, offset, idx+1);
-                        }
-                    }
+					if (autoGeneratedVertices)
+					{
+						currentState.m_stream[0].m_layoutHandle = BGFX_INVALID_HANDLE;
+						currentState.m_stream[0].m_handle = BGFX_INVALID_HANDLE;
+						currentState.m_stream[0].m_startVertex = 0;
+						numStreams = 0u;
+					}
+					else
+					{
+						for (uint32_t idx = 0, streamMask = draw.m_streamMask
+							 ; 0 != streamMask
+							 ; streamMask >>= 1, idx += 1, ++numStreams
+							 )
+						{
+							const uint32_t ntz = bx::uint32_cnttz(streamMask);
+							streamMask >>= ntz;
+							idx         += ntz;
+							
+							currentState.m_stream[idx].m_layoutHandle   = draw.m_stream[idx].m_layoutHandle;
+							currentState.m_stream[idx].m_handle         = draw.m_stream[idx].m_handle;
+							currentState.m_stream[idx].m_startVertex    = draw.m_stream[idx].m_startVertex;
+							
+							const uint16_t handle = draw.m_stream[idx].m_handle.idx;
+							const VertexBufferMtl& vb = m_vertexBuffers[handle];
+							const uint16_t decl = isValid(draw.m_stream[idx].m_layoutHandle)
+								? draw.m_stream[idx].m_layoutHandle.idx
+								: vb.m_layoutHandle.idx;
+							const VertexLayout& layout = m_vertexLayouts[decl];
+							const uint32_t stride = layout.m_stride;
+							
+							layouts[numStreams] = &layout;
+							
+							numVertices = bx::uint32_min(UINT32_MAX == draw.m_numVertices
+								 ? vb.m_size/stride
+								 : draw.m_numVertices
+								 , numVertices
+								 );
+							const uint32_t offset = draw.m_stream[idx].m_startVertex * stride;
+							
+							rce.setVertexBuffer(vb.m_ptr, offset, idx+1);
+						}
+					}
 
 					if (!isValid(currentProgram) )
 					{
@@ -4899,7 +4897,8 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 					{
 						currentPso = NULL;
 
-						if (0 < numStreams || autoGeneratedVertices)
+						// TODO: John there was "|| autoGeneratedVertices" before the update
+						if (0 < numStreams)
 						{
 							currentPso = getPipelineState(
 								  newFlags
@@ -5179,10 +5178,10 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 			}
 
 			submitBlit(bs, BGFX_CONFIG_MAX_VIEWS);
+			
+			// TODO: John do we need this? Originally: Resolve final framebuffer
+			resolveFramebuffer(fbh);
 
-            // TODO: John do we need this? Originally: Resolve final framebuffer
-            resolveFramebuffer(fbh);
-            
 			if (0 < _render->m_numRenderItems)
 			{
 				captureElapsed = -bx::getHPCounter();
