@@ -1036,12 +1036,13 @@ namespace bgfx { namespace mtl
 	struct SwapChainMtl
 	{
 		SwapChainMtl()
-//#if BX_PLATFORM_VISIONOS
-//			: m_layerRenderer(NULL)
-//			, m_frame(NULL)
-//			, m_useLayerRenderer(true)
-//#endif
 			: m_metalLayer(nil)
+#if BX_PLATFORM_VISIONOS
+			, m_layerRenderer(NULL)
+			, m_layerRendererDrawable(NULL)
+			, m_frame(NULL)
+			, m_useLayerRenderer(true)
+#endif
 			, m_drawable(nil)
 			, m_drawableTexture(nil)
 			, m_backBufferColorMsaa()
@@ -1057,16 +1058,14 @@ namespace bgfx { namespace mtl
 		void resize(FrameBufferMtl &_frameBuffer, uint32_t _width, uint32_t _height, uint32_t _flags, uint32_t _maximumDrawableCount);
 
 		id <MTLTexture> 	currentDrawableTexture();
-
-
-//#if BX_PLATFORM_VISIONOS
-//		cp_layer_renderer_t m_layerRenderer;
-//		cp_frame_t m_frame;
-//		//cp_drawable_t m_drawable;
-//		bool m_useLayerRenderer;
-//#endif
 		
 		CAMetalLayer* m_metalLayer;
+#if BX_PLATFORM_VISIONOS
+		cp_layer_renderer_t m_layerRenderer;
+		cp_drawable_t m_layerRendererDrawable;
+		cp_frame_t m_frame;
+		bool m_useLayerRenderer;
+#endif
 		id <CAMetalDrawable> m_drawable;
 
 		id <MTLTexture> 	 m_drawableTexture;
