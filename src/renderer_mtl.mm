@@ -3820,15 +3820,15 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 				m_frame = cp_layer_renderer_query_next_frame(m_layerRenderer);
 				if (m_frame)
 				{
-                    cp_frame_timing_t timing = cp_frame_predict_timing(m_frame);
-                    if (timing == nullptr) { return nullptr; }
-                    
-                    cp_frame_start_update(m_frame);
-                    
-                    cp_frame_end_update(m_frame);
-                    
-                    cp_time_wait_until(cp_frame_timing_get_optimal_input_time(timing));
-                    cp_frame_start_submission(m_frame);
+					cp_frame_timing_t timing = cp_frame_predict_timing(m_frame);
+					if (timing == nullptr) { return nullptr; }
+					
+					cp_frame_start_update(m_frame);
+					
+					cp_frame_end_update(m_frame);
+					
+					cp_time_wait_until(cp_frame_timing_get_optimal_input_time(timing));
+					cp_frame_start_submission(m_frame);
 					m_layerRendererDrawable = cp_frame_query_drawable(m_frame);
 				}
 			}
