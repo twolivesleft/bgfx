@@ -4672,7 +4672,8 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 #if BX_PLATFORM_VISIONOS
 						if (m_mainFrameBuffer.m_swapChain->m_useLayerRenderer)
 						{
-							if (cp_layer_renderer_configuration_get_layout(m_mainFrameBuffer.m_swapChain->m_layerRendererConfiguration) == cp_layer_renderer_layout_layered) {
+							if (cp_layer_renderer_configuration_get_layout(m_mainFrameBuffer.m_swapChain->m_layerRendererConfiguration) == cp_layer_renderer_layout_layered)
+							{
 								MTLViewport viewports[2];
 								calculateViewPorts(viewports);
 								rce.setViewports(viewports, 1);
