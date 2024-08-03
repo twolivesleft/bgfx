@@ -1086,8 +1086,8 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 #if BX_PLATFORM_VISIONOS
 			if (swapChain->m_useLayerRenderer)
 			{
-                cp_layer_renderer_configuration_t layerConfiguration = cp_layer_renderer_get_configuration(swapChain->m_layerRenderer);
-                return cp_layer_renderer_configuration_get_color_format(layerConfiguration);
+				cp_layer_renderer_configuration_t layerConfiguration = cp_layer_renderer_get_configuration(swapChain->m_layerRenderer);
+				return cp_layer_renderer_configuration_get_color_format(layerConfiguration);
 			}
 #endif // BX_PLATFORM_VISIONOS
 			
