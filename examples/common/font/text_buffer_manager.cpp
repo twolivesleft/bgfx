@@ -797,7 +797,7 @@ void TextBuffer::appendGlyph(FontHandle _handle, CodePoint _codePoint, bool shad
 		setOutlineColor(m_vertexCount + 3, m_outlineColor);
 	}
 
-    m_indexBuffer[m_indexCount + 0] = m_vertexCount + 0;
+	m_indexBuffer[m_indexCount + 0] = m_vertexCount + 0;
 	m_indexBuffer[m_indexCount + 1] = m_vertexCount + 1;
 	m_indexBuffer[m_indexCount + 2] = m_vertexCount + 2;
 	m_indexBuffer[m_indexCount + 3] = m_vertexCount + 0;

@@ -439,6 +439,11 @@ namespace bgfx { namespace mtl
 			[m_obj setBlendColorRed:_red green:_green blue:_blue alpha:_alpha];
 		}
 
+		void setVertexAmplificationCount(NSUInteger count, MTLVertexAmplificationViewMapping* viewMappings)
+		{
+			[m_obj setVertexAmplificationCount:count viewMappings:viewMappings];
+		}
+
 		void setCullMode(MTLCullMode _cullMode)
 		{
 			[m_obj setCullMode:_cullMode];
@@ -482,6 +487,11 @@ namespace bgfx { namespace mtl
 		void setViewport(MTLViewport _viewport)
 		{
 			[m_obj setViewport:_viewport];
+		}
+
+		void setViewports(MTLViewport _viewport[], NSInteger count)
+		{
+			[m_obj setViewports:_viewport count:count];
 		}
 
 		void setVisibilityResultMode(MTLVisibilityResultMode _mode, NSUInteger _offset)
@@ -1067,6 +1077,7 @@ namespace bgfx { namespace mtl
 #if BX_PLATFORM_VISIONOS
 		cp_layer_renderer_t m_layerRenderer;
 		cp_drawable_t m_layerRendererDrawable;
+		cp_layer_renderer_configuration_t m_layerRendererConfiguration;
 		cp_frame_t m_frame;
 		bool m_useLayerRenderer;
 #endif
