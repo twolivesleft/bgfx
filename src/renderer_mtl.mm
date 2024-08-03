@@ -3748,7 +3748,8 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 #if BX_PLATFORM_VISIONOS
 		if (m_useLayerRenderer)
 		{
-			if (m_layerRendererDrawable) {
+			if (m_layerRendererDrawable)
+			{
 				m_backBufferDepth = cp_drawable_get_depth_texture(m_layerRendererDrawable, 0);
 			}
 		}
