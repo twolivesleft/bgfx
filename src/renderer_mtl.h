@@ -1077,7 +1077,7 @@ namespace bgfx { namespace mtl
 #if BX_PLATFORM_VISIONOS
 		cp_layer_renderer_t m_layerRenderer;
 		cp_drawable_t m_layerRendererDrawable;
-        cp_layer_renderer_configuration_t m_layerRendererConfiguration;
+		cp_layer_renderer_configuration_t m_layerRendererConfiguration;
 		cp_frame_t m_frame;
 		bool m_useLayerRenderer;
 #endif
