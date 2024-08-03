@@ -6,10 +6,12 @@
 
 #pragma once
 
-#define IMGUI_DEFINE_MATH_OPERATORS
-#define IMGUI_DISABLE_OBSOLETE_FUNCTIONS
-#define IMGUI_DISABLE_OBSOLETE_KEYIO
-#define IMGUI_DISABLE_DEFAULT_ALLOCATORS
+// TODO: John, seems like we need to add this define to this file
+ #define IMGUI_DEFINE_MATH_OPERATORS
+ // TODO: John, disabled these, but you'll want to check the comments about KeyMap in imgui.h
+ //#define IMGUI_DISABLE_OBSOLETE_FUNCTIONS
+ //#define IMGUI_DISABLE_OBSOLETE_KEYIO
+ #define IMGUI_DISABLE_DEFAULT_ALLOCATORS
 
 //---- Define your own ImVector<> type if you don't want to use the provided implementation defined in imgui.h
 //#include <vector>
