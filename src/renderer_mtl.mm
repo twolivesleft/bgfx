@@ -556,7 +556,9 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 			m_numWindows = 1;
 
 #if BX_PLATFORM_VISIONOS
-			if (NULL == m_mainFrameBuffer.m_swapChain->m_layerRenderer)
+			if ((m_mainFrameBuffer.m_swapChain->m_useLayerRenderer
+				&& NULL == m_mainFrameBuffer.m_swapChain->m_layerRenderer)
+				|| NULL == m_mainFrameBuffer.m_swapChain->m_metalLayer)
 #else
 			if (NULL == m_mainFrameBuffer.m_swapChain->m_metalLayer)
 #endif // BX_PLATFORM_VISIONOS
@@ -1073,11 +1075,14 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 		MTLPixelFormat getSwapChainPixelFormat(SwapChainMtl *swapChain)
 		{
 #if BX_PLATFORM_VISIONOS
-			cp_layer_renderer_configuration_t layerConfiguration = cp_layer_renderer_get_configuration(swapChain->m_layerRenderer);
-			return cp_layer_renderer_configuration_get_color_format(layerConfiguration);
-#else
-			return swapChain->m_metalLayer.pixelFormat;
+			if (swapChain->m_useLayerRenderer)
+			{
+                cp_layer_renderer_configuration_t layerConfiguration = cp_layer_renderer_get_configuration(swapChain->m_layerRenderer);
+                return cp_layer_renderer_configuration_get_color_format(layerConfiguration);
+			}
 #endif // BX_PLATFORM_VISIONOS
+			
+			return swapChain->m_metalLayer.pixelFormat;
 		}
 
 		void readTexture(TextureHandle _handle, void* _data, uint8_t _mip) override
@@ -1542,21 +1547,27 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 				{
 					MTL_RELEASE(frameBuffer.m_swapChain->m_drawableTexture);
 
+#if BX_PLATFORM_VISIONOS
+					if (frameBuffer.m_swapChain->m_useLayerRenderer)
+					{
+						if (NULL != frameBuffer.m_swapChain->m_layerRendererDrawable)
+						{
+							if (m_worldTracking != NULL)
+							{
+								auto timingInfo = cp_drawable_get_frame_timing(frameBuffer.m_swapChain->m_drawable);
+								createPoseForTiming(timingInfo, m_worldTracking);
+								cp_drawable_set_device_anchor(frameBuffer.m_swapChain->m_drawable, m_deviceAnchor);
+							}
+							cp_drawable_encode_present(frameBuffer.m_swapChain->m_drawable, m_commandBuffer);
+							cp_frame_end_submission(frameBuffer.m_swapChain->m_frame);
+						}
+					}
+					else
+#endif // BX_PLATFORM_VISIONOS
 					if (NULL != frameBuffer.m_swapChain->m_drawable)
 					{
-#if BX_PLATFORM_VISIONOS
-						if (m_worldTracking != NULL)
-						{
-							auto timingInfo = cp_drawable_get_frame_timing(frameBuffer.m_swapChain->m_drawable);
-							createPoseForTiming(timingInfo, m_worldTracking);
-							cp_drawable_set_device_anchor(frameBuffer.m_swapChain->m_drawable, m_deviceAnchor);
-						}
-						cp_drawable_encode_present(frameBuffer.m_swapChain->m_drawable, m_commandBuffer);
-						cp_frame_end_submission(frameBuffer.m_swapChain->m_frame);
-#else
 						m_commandBuffer.presentDrawable(frameBuffer.m_swapChain->m_drawable);
 						MTL_RELEASE(frameBuffer.m_swapChain->m_drawable);
-#endif // BX_PLATFORM_VISIONOS
 					}
 				}
 			}
@@ -3491,12 +3502,12 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 
 	SwapChainMtl::~SwapChainMtl()
 	{
+		MTL_RELEASE(m_metalLayer);
 #if BX_PLATFORM_VISIONOS
 		MTL_RELEASE(m_layerRenderer);
-#else
-		MTL_RELEASE(m_metalLayer);
-		MTL_RELEASE(m_drawable);
+		MTL_RELEASE(m_layerRendererDrawable);
 #endif // BX_PLATFORM_VISIONOS
+		MTL_RELEASE(m_drawable);
 
 		MTL_RELEASE(m_drawableTexture);
 
@@ -3513,6 +3524,9 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 	void SwapChainMtl::init(void* _nwh)
 	{
 #if BX_PLATFORM_VISIONOS
+		NSObject* nvh = (NSObject*)_nwh;
+		m_useLayerRenderer = ![nvh isKindOfClass:[CAMetalLayer class]];
+		if (m_useLayerRenderer)
 		{
 			cp_layer_renderer_t layerRenderer = (cp_layer_renderer_t)_nwh;
 			m_layerRenderer = layerRenderer;
@@ -3525,112 +3539,114 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 			retain(m_layerRendererConfiguration);
 			retain(m_layerRenderer);
 		}
-#else
-		if (m_metalLayer)
+		else
+#endif // BX_PLATFORM_VISIONOS
 		{
-			release(m_metalLayer);
-		}
-
-		if (NULL != NSClassFromString(@"MTKView") )
-		{
-			MTKView *view = (MTKView *)_nwh;
-
-			if (NULL != view
-			&&  [view isKindOfClass:NSClassFromString(@"MTKView")])
+			if (m_metalLayer)
 			{
-				m_metalLayer = (CAMetalLayer *)view.layer;
+				release(m_metalLayer);
 			}
-		}
-
-		if (NULL != NSClassFromString(@"CAMetalLayer") )
-		{
-			if (NULL == m_metalLayer)
-#	if BX_PLATFORM_IOS
+			
+			if (NULL != NSClassFromString(@"MTKView") )
 			{
-				CAMetalLayer* metalLayer = (CAMetalLayer*)_nwh;
-				if (NULL == metalLayer
-				|| ![metalLayer isKindOfClass:NSClassFromString(@"CAMetalLayer")])
+				MTKView *view = (MTKView *)_nwh;
+				
+				if (NULL != view
+					&&  [view isKindOfClass:NSClassFromString(@"MTKView")])
 				{
-					BX_WARN(false, "Unable to create Metal device. Please set platform data window to a CAMetalLayer");
-					return;
+					m_metalLayer = (CAMetalLayer *)view.layer;
 				}
-
-				m_metalLayer = metalLayer;
 			}
-#	elif BX_PLATFORM_OSX
+			
+			if (NULL != NSClassFromString(@"CAMetalLayer") )
 			{
-				NSObject* nvh = (NSObject*)_nwh;
-				if ([nvh isKindOfClass:[CAMetalLayer class]])
+				if (NULL == m_metalLayer)
+#	if BX_PLATFORM_IOS || BX_PLATFORM_VISIONOS
 				{
 					CAMetalLayer* metalLayer = (CAMetalLayer*)_nwh;
+					if (NULL == metalLayer
+						|| ![metalLayer isKindOfClass:NSClassFromString(@"CAMetalLayer")])
+					{
+						BX_WARN(false, "Unable to create Metal device. Please set platform data window to a CAMetalLayer");
+						return;
+					}
+					
 					m_metalLayer = metalLayer;
 				}
-				else
+#	elif BX_PLATFORM_OSX
 				{
-					NSView *contentView;
-
-					if ([nvh isKindOfClass:[NSView class]])
+					NSObject* nvh = (NSObject*)_nwh;
+					if ([nvh isKindOfClass:[CAMetalLayer class]])
 					{
-						contentView = (NSView*)nvh;
-					}
-					else if ([nvh isKindOfClass:[NSWindow class]])
-					{
-						NSWindow* nsWindow = (NSWindow*)nvh;
-						contentView = [nsWindow contentView];
+						CAMetalLayer* metalLayer = (CAMetalLayer*)_nwh;
+						m_metalLayer = metalLayer;
 					}
 					else
 					{
-						BX_WARN(0, "Unable to create Metal device. Please set platform data window to an NSWindow, NSView, or CAMetalLayer");
-						return;
-					}
-
-					void (^setLayer)(void) = ^{
-						CALayer* layer = contentView.layer;
-						if(NULL != layer && [layer isKindOfClass:NSClassFromString(@"CAMetalLayer")])
+						NSView *contentView;
+						
+						if ([nvh isKindOfClass:[NSView class]])
 						{
-							m_metalLayer = (CAMetalLayer*)layer;
+							contentView = (NSView*)nvh;
+						}
+						else if ([nvh isKindOfClass:[NSWindow class]])
+						{
+							NSWindow* nsWindow = (NSWindow*)nvh;
+							contentView = [nsWindow contentView];
 						}
 						else
 						{
-							[contentView setWantsLayer:YES];
-							m_metalLayer = [CAMetalLayer layer];
-							[contentView setLayer:m_metalLayer];
+							BX_WARN(0, "Unable to create Metal device. Please set platform data window to an NSWindow, NSView, or CAMetalLayer");
+							return;
 						}
-					};
-
-					if ([NSThread isMainThread])
-					{
-						setLayer();
-					}
-					else
-					{
-						bx::Semaphore semaphore;
-						bx::Semaphore* psemaphore = &semaphore;
-
-						CFRunLoopPerformBlock([[NSRunLoop mainRunLoop] getCFRunLoop],
-											  kCFRunLoopCommonModes,
-											  ^{
-												  setLayer();
-												  psemaphore->post();
-											  });
-						semaphore.wait();
+						
+						void (^setLayer)(void) = ^{
+							CALayer* layer = contentView.layer;
+							if(NULL != layer && [layer isKindOfClass:NSClassFromString(@"CAMetalLayer")])
+							{
+								m_metalLayer = (CAMetalLayer*)layer;
+							}
+							else
+							{
+								[contentView setWantsLayer:YES];
+								m_metalLayer = [CAMetalLayer layer];
+								[contentView setLayer:m_metalLayer];
+							}
+						};
+						
+						if ([NSThread isMainThread])
+						{
+							setLayer();
+						}
+						else
+						{
+							bx::Semaphore semaphore;
+							bx::Semaphore* psemaphore = &semaphore;
+							
+							CFRunLoopPerformBlock([[NSRunLoop mainRunLoop] getCFRunLoop],
+												  kCFRunLoopCommonModes,
+												  ^{
+								setLayer();
+								psemaphore->post();
+							});
+							semaphore.wait();
+						}
 					}
 				}
-			}
 #	endif // BX_PLATFORM_*
+			}
+			
+			if (NULL == m_metalLayer)
+			{
+				BX_WARN(NULL != s_renderMtl->m_device, "Unable to create Metal device.");
+				return;
+			}
+			
+			m_metalLayer.device      = s_renderMtl->m_device;
+			m_metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+			m_metalLayer.magnificationFilter = kCAFilterNearest;
+			retain(m_metalLayer);
 		}
-
-		if (NULL == m_metalLayer)
-		{
-			BX_WARN(NULL != s_renderMtl->m_device, "Unable to create Metal device.");
-			return;
-		}
-
-		m_metalLayer.device      = s_renderMtl->m_device;
-		m_metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
-		m_metalLayer.magnificationFilter = kCAFilterNearest;
-		retain(m_metalLayer);
-#endif // BX_PLATFORM_VISIONOS
 
 		m_nwh = _nwh;
 	}
@@ -3657,13 +3673,16 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 #	endif // __MAC_OS_X_VERSION_MAX_ALLOWED >= 101300
 #endif // BX_PLATFORM_OSX
 
-#if !BX_PLATFORM_VISIONOS
-		m_metalLayer.drawableSize = CGSizeMake(_width, _height);
-		m_metalLayer.pixelFormat  = (_flags & BGFX_RESET_SRGB_BACKBUFFER)
+#if BX_PLATFORM_VISIONOS
+		if (!m_useLayerRenderer)
+#endif // BX_PLATFORM_VISIONOS
+		{
+			m_metalLayer.drawableSize = CGSizeMake(_width, _height);
+			m_metalLayer.pixelFormat  = (_flags & BGFX_RESET_SRGB_BACKBUFFER)
 			? MTLPixelFormatBGRA8Unorm_sRGB
 			: MTLPixelFormatBGRA8Unorm
 			;
-#endif // BX_PLATFORM_VISIONOS
+		}
 
 		TextureDescriptor desc = s_renderMtl->m_textureDescriptor;
 
@@ -3729,19 +3748,27 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 		if (sampleCount > 1)
 		{
 #if BX_PLATFORM_VISIONOS
-			desc.pixelFormat = MTLPixelFormatBGRA8Unorm_sRGB;
-#else
-			desc.pixelFormat = m_metalLayer.pixelFormat;
+			if (m_useLayerRenderer)
+			{
+				desc.pixelFormat = MTLPixelFormatBGRA8Unorm_sRGB;
+			}
+			else
 #endif // BX_PLATFORM_VISIONOS
+			{
+				desc.pixelFormat = m_metalLayer.pixelFormat;
+			}
 			m_backBufferColorMsaa = s_renderMtl->m_device.newTextureWithDescriptor(desc);
 		}
 
 		bx::HashMurmur2A murmur;
 		murmur.begin();
 		murmur.add(1);
-#if !BX_PLATFORM_VISIONOS
-		murmur.add( (uint32_t)m_metalLayer.pixelFormat);
+#if BX_PLATFORM_VISIONOS
+		if (!m_useLayerRenderer)
 #endif // !BX_PLATFORM_VISIONOS
+		{
+			murmur.add( (uint32_t)m_metalLayer.pixelFormat);
+		}
 		murmur.add( (uint32_t)m_backBufferDepth.pixelFormat() );
 		murmur.add( (uint32_t)m_backBufferStencil.pixelFormat() );
 		murmur.add( (uint32_t)sampleCount);
@@ -3753,33 +3780,43 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 		if (NULL == m_drawableTexture)
 		{
 #if BX_PLATFORM_VISIONOS
-			m_frame = cp_layer_renderer_query_next_frame(m_layerRenderer);
-			if (m_frame)
+			if (m_useLayerRenderer)
 			{
-				cp_frame_timing_t timing = cp_frame_predict_timing(m_frame);
-				if (timing == nullptr) { return nullptr; }
-				
-				cp_frame_start_update(m_frame);
-				
-				cp_frame_end_update(m_frame);
-				
-				cp_time_wait_until(cp_frame_timing_get_optimal_input_time(timing));
-				cp_frame_start_submission(m_frame);
-				m_drawable = cp_frame_query_drawable(m_frame);
+				m_frame = cp_layer_renderer_query_next_frame(m_layerRenderer);
+				if (m_frame)
+				{
+                    cp_frame_timing_t timing = cp_frame_predict_timing(m_frame);
+                    if (timing == nullptr) { return nullptr; }
+                    
+                    cp_frame_start_update(m_frame);
+                    
+                    cp_frame_end_update(m_frame);
+                    
+                    cp_time_wait_until(cp_frame_timing_get_optimal_input_time(timing));
+                    cp_frame_start_submission(m_frame);
+                    m_drawable = cp_frame_query_drawable(m_frame);
+				}
 			}
-#else
-			m_drawable = m_metalLayer.nextDrawable;
+			else
 #endif // BX_PLATFORM_VISIONOS
+			{
+				m_drawable = m_metalLayer.nextDrawable;
+			}
 
+#if BX_PLATFORM_VISIONOS
+			if (m_useLayerRenderer)
+			{
+				if (m_layerRendererDrawable != NULL)
+				{
+					m_drawableTexture = cp_drawable_get_color_texture(m_layerRendererDrawable, 0);
+				}
+			}
+			else
+#endif // BX_PLATFORM_VISIONOS
 			if (m_drawable != NULL)
 			{
-#if BX_PLATFORM_VISIONOS
-				m_drawableTexture = cp_drawable_get_color_texture(m_drawable, 0);
-#else
 				m_drawableTexture = m_drawable.texture;
 				retain(m_drawable); // keep alive to be useable at 'flip'
-#endif // BX_PLATFORM_VISIONOS
-
 				retain(m_drawableTexture);
 			}
 			else
@@ -3788,12 +3825,17 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 				desc.textureType = MTLTextureType2D;
 
 #if BX_PLATFORM_VISIONOS
-				desc.pixelFormat = MTLPixelFormatBGRA8Unorm_sRGB;
-#else
-				desc.pixelFormat = m_metalLayer.pixelFormat;
-				desc.width  = m_metalLayer.drawableSize.width;
-				desc.height = m_metalLayer.drawableSize.height;
+				if (m_useLayerRenderer)
+				{
+					desc.pixelFormat = MTLPixelFormatBGRA8Unorm_sRGB;
+				}
+				else
 #endif // BX_PLATFORM_VISIONOS
+				{
+					desc.pixelFormat = m_metalLayer.pixelFormat;
+					desc.width  = m_metalLayer.drawableSize.width;
+					desc.height = m_metalLayer.drawableSize.height;
+				}
 
 				desc.depth  = 1;
 				desc.mipmapLevelCount = 1;
