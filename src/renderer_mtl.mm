@@ -3425,8 +3425,8 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 	void SwapChainMtl::init(void* _nwh)
 	{
 #if BX_PLATFORM_VISIONOS
-		const bgfx::Caps* caps = bgfx::getCaps();
-		m_useLayerRenderer = 0 != (caps->supported & BGFX_CAPS_LAYER_RENDERER);
+		NSObject* nvh = (NSObject*)_nwh;
+		m_useLayerRenderer = ![nvh isKindOfClass:[CAMetalLayer class]];
 		if (m_useLayerRenderer)
 		{
 			cp_layer_renderer_t layerRenderer = (cp_layer_renderer_t)_nwh;
