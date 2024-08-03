@@ -3783,7 +3783,7 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 		{
 #if BX_PLATFORM_VISIONOS
 			if (m_useLayerRenderer)
-			{				
+			{
 				desc.pixelFormat = MTLPixelFormatBGRA8Unorm_sRGB;
 			}
 			else
@@ -3843,6 +3843,7 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 				if (m_layerRendererDrawable != NULL)
 				{
 					m_drawableTexture = cp_drawable_get_color_texture(m_layerRendererDrawable, 0);
+					retain(m_drawableTexture);
 				}
 			}
 			else
