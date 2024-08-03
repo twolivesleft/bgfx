@@ -370,10 +370,13 @@ namespace bgfx { namespace mtl
 
 		case MTLDataTypeFloat:
 			return UniformType::Float;
+				
 		case MTLDataTypeFloat2:
 			return UniformType::Vec2;
+				
 		case MTLDataTypeFloat3:
 			return UniformType::Vec3;
+				
 		case MTLDataTypeFloat4:
 			return UniformType::Vec4;
 				
@@ -1835,6 +1838,18 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 
 				case UniformType::Sampler:
 				case UniformType::Sampler | kUniformFragmentBit:
+				case UniformType::UInt:
+				case UniformType::UInt | kUniformFragmentBit:
+				case UniformType::Int:
+				case UniformType::Int | kUniformFragmentBit:
+				case UniformType::Bool:
+				case UniformType::Bool | kUniformFragmentBit:
+				case UniformType::Float:
+				case UniformType::Float | kUniformFragmentBit:
+				case UniformType::Vec2:
+				case UniformType::Vec2 | kUniformFragmentBit:
+				case UniformType::Vec3:
+				case UniformType::Vec3 | kUniformFragmentBit:
 				case UniformType::Vec4:
 				case UniformType::Vec4 | kUniformFragmentBit:
 				case UniformType::Mat4:
@@ -2264,11 +2279,17 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 										case MTLDataTypeFloat4:   num *= 1; break;
 										case MTLDataTypeFloat4x4: num *= 4; break;
 										case MTLDataTypeFloat3x3: num *= 3; break;
-										// TODO: John re-assess this
-										// case MTLDataTypeFloat:    num *= 1; break;
-										// case MTLDataTypeFloat2:    num *= 1; break;
-										// case MTLDataTypeFloat3:    num *= 1; break;
-
+										
+										// TODO: John, these were added by you originally
+										// Do we need to add `MTLDataTypeInt`,
+										// `MTLDataTypeUInt` and `MTLDataTypeBool` here too?
+										case MTLDataTypeFloat:    num *= 1; break;
+										case MTLDataTypeFloat2:   num *= 1; break;
+										case MTLDataTypeFloat3:   num *= 1; break;
+												
+										case MTLDataTypeUInt:     num *= 1; break;
+										case MTLDataTypeInt:      num *= 1; break;
+										case MTLDataTypeBool:     num *= 1; break;
 
 										default:
 											BX_WARN(0, "Unsupported uniform MTLDataType: %d", uniform.dataType);
