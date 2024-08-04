@@ -390,8 +390,7 @@ namespace bgfx { namespace mtl
 
 		bool supportsTextureSampleCount(int sampleCount)
 		{
-			if (BX_ENABLED(BX_PLATFORM_IOS) && !iOSVersionEqualOrGreater("9.0.0"))
-			{
+			if (BX_ENABLED(BX_PLATFORM_VISIONOS) || (BX_ENABLED(BX_PLATFORM_IOS) && !iOSVersionEqualOrGreater("9.0.0")) )
 				return sampleCount == 1 || sampleCount == 2 ||  sampleCount == 4;
 			}
 			else
