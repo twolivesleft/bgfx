@@ -562,9 +562,9 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 			m_numWindows = 1;
 
 #if BX_PLATFORM_VISIONOS
-			if ((m_mainFrameBuffer.m_swapChain->m_useLayerRenderer
-				&& NULL == m_mainFrameBuffer.m_swapChain->m_layerRenderer)
-				|| NULL == m_mainFrameBuffer.m_swapChain->m_metalLayer)
+			bool useLayerRenderer = m_mainFrameBuffer.m_swapChain->m_useLayerRenderer;
+			if ((useLayerRenderer && NULL == m_mainFrameBuffer.m_swapChain->m_layerRenderer)
+				|| (!useLayerRenderer && NULL == m_mainFrameBuffer.m_swapChain->m_metalLayer))
 #else
 			if (NULL == m_mainFrameBuffer.m_swapChain->m_metalLayer)
 #endif // BX_PLATFORM_VISIONOS
@@ -2114,31 +2114,6 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 
 			m_fbh    = _fbh;
 			m_rtMsaa = _msaa;
-		}
-		
-		// TODO: John to see whether this is still needed?
-		void resolveFramebuffer(FrameBufferHandle _fbh)
-		{
-			// Resolve previous frame buffer and auto-gen mipmaps if needed
-			if (isValid(_fbh) && _fbh.idx != BGFX_CONFIG_MAX_FRAME_BUFFERS)
-			{
-				FrameBufferMtl& frameBuffer = m_frameBuffers[_fbh.idx];
-												
-				for (uint32_t ii = 0; ii < frameBuffer.m_num; ++ii)
-				{
-					uint8_t resolve = frameBuffer.m_colorAttachment[ii].resolve;
-					if (0 != (resolve & BGFX_RESOLVE_AUTO_GEN_MIPS))
-					{
-						const TextureMtl& texture = m_textures[frameBuffer.m_colorHandle[ii].idx];
-						if (texture.m_numMips > 1)
-						{
-							getBlitCommandEncoder().generateMipmapsForTexture(texture.m_ptr);
-						}
-					}
-				}
-				
-				endEncoding();
-			}
 		}
 
 		void setDepthStencilState(uint64_t _state, uint64_t _stencil = 0)
@@ -4528,9 +4503,6 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 						{
 							endEncoding();
 
-							// TODO: John do we need to call this still?
-							resolveFramebuffer(fbh);
-
 							RenderPassDescriptor renderPassDescriptor = newRenderPassDescriptor();
 							renderPassDescriptor.visibilityResultBuffer = m_occlusionQuery.m_buffer;
 
@@ -5414,9 +5386,6 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 			}
 
 			submitBlit(bs, BGFX_CONFIG_MAX_VIEWS);
-			
-			// TODO: John do we need this? Originally: Resolve final framebuffer
-			resolveFramebuffer(fbh);
 
 			if (0 < _render->m_numRenderItems)
 			{
