@@ -3574,6 +3574,7 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 				release(m_metalLayer);
 			}
 			
+#if !BX_PLATFORM_VISIONOS
 			if (NULL != NSClassFromString(@"MTKView") )
 			{
 				MTKView *view = (MTKView *)_nwh;
@@ -3584,6 +3585,7 @@ BX_STATIC_ASSERT(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNa
 					m_metalLayer = (CAMetalLayer *)view.layer;
 				}
 			}
+#endif
 			
 			if (NULL != NSClassFromString(@"CAMetalLayer") )
 			{
