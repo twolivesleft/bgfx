@@ -746,10 +746,10 @@ void TextBuffer::appendGlyph(FontHandle _handle, CodePoint _codePoint, bool shad
 			, sizeof(TextVertex)
 			);
 
-        setVertex(m_vertexCount + 0, x0, y0, modifier.colors[0], STYLE_STRIKE_THROUGH);
-        setVertex(m_vertexCount + 1, x0, y1, modifier.colors[1], STYLE_STRIKE_THROUGH);
-        setVertex(m_vertexCount + 2, x1, y1, modifier.colors[2], STYLE_STRIKE_THROUGH);
-        setVertex(m_vertexCount + 3, x1, y0, modifier.colors[3], STYLE_STRIKE_THROUGH);
+        setVertex(m_vertexCount + 0, x0, y0, m_strikeThroughColor, STYLE_STRIKE_THROUGH);
+        setVertex(m_vertexCount + 1, x0, y1, m_strikeThroughColor, STYLE_STRIKE_THROUGH);
+        setVertex(m_vertexCount + 2, x1, y1, m_strikeThroughColor, STYLE_STRIKE_THROUGH);
+        setVertex(m_vertexCount + 3, x1, y0, m_strikeThroughColor, STYLE_STRIKE_THROUGH);
         
 		m_indexBuffer[m_indexCount + 0] = m_vertexCount + 0;
 		m_indexBuffer[m_indexCount + 1] = m_vertexCount + 1;
