@@ -1028,6 +1028,7 @@ void TextBufferManager::submitTextBuffer(TextBufferHandle _handle, bgfx::ViewId 
 		program = m_basicProgram;
 		bgfx::setState(0
 			| BGFX_STATE_WRITE_RGB
+			| BGFX_STATE_WRITE_A
 			| BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_INV_SRC_ALPHA)
 			);
 		break;
@@ -1037,6 +1038,7 @@ void TextBufferManager::submitTextBuffer(TextBufferHandle _handle, bgfx::ViewId 
 		program = m_distanceProgram;
 		bgfx::setState(0
 			| BGFX_STATE_WRITE_RGB
+			| BGFX_STATE_WRITE_A
 			| BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_INV_SRC_ALPHA)
 			);
 
@@ -1049,6 +1051,7 @@ void TextBufferManager::submitTextBuffer(TextBufferHandle _handle, bgfx::ViewId 
 		program = m_distanceSubpixelProgram;
 		bgfx::setState(0
 			| BGFX_STATE_WRITE_RGB
+			| BGFX_STATE_WRITE_A
 			| BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_FACTOR, BGFX_STATE_BLEND_INV_SRC_COLOR)
 			, bc.textBuffer->getTextColor()
 			);
@@ -1059,6 +1062,7 @@ void TextBufferManager::submitTextBuffer(TextBufferHandle _handle, bgfx::ViewId 
 		program = m_distanceOutlineProgram;
 		bgfx::setState(0
 			| BGFX_STATE_WRITE_RGB
+			| BGFX_STATE_WRITE_A
 			| BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_INV_SRC_ALPHA)
 			);
 
@@ -1072,6 +1076,7 @@ void TextBufferManager::submitTextBuffer(TextBufferHandle _handle, bgfx::ViewId 
 		program = m_distanceOutlineImageProgram;
 		bgfx::setState(0
 			| BGFX_STATE_WRITE_RGB
+			| BGFX_STATE_WRITE_A
 			| BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_INV_SRC_ALPHA)
 			);
 
@@ -1085,6 +1090,7 @@ void TextBufferManager::submitTextBuffer(TextBufferHandle _handle, bgfx::ViewId 
 		program = m_distanceDropShadowProgram;
 		bgfx::setState(0
 			| BGFX_STATE_WRITE_RGB
+			| BGFX_STATE_WRITE_A
 			| BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_INV_SRC_ALPHA)
 			);
 
@@ -1102,6 +1108,7 @@ void TextBufferManager::submitTextBuffer(TextBufferHandle _handle, bgfx::ViewId 
 		program = m_distanceDropShadowImageProgram;
 		bgfx::setState(0
 			| BGFX_STATE_WRITE_RGB
+			| BGFX_STATE_WRITE_A
 			| BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_INV_SRC_ALPHA)
 			);
 
@@ -1119,6 +1126,7 @@ void TextBufferManager::submitTextBuffer(TextBufferHandle _handle, bgfx::ViewId 
 		program = m_distanceOutlineDropShadowImageProgram;
 		bgfx::setState(0
 			| BGFX_STATE_WRITE_RGB
+			| BGFX_STATE_WRITE_A
 			| BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_INV_SRC_ALPHA)
 			);
 
