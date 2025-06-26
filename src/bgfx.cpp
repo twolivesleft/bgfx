@@ -668,9 +668,9 @@ namespace bgfx
 		}
 	}
 
-	static const uint32_t numCharsPerBatch = 1024;
-	static const uint32_t numBatchVertices = numCharsPerBatch*4;
-	static const uint32_t numBatchIndices  = numCharsPerBatch*6;
+	static constexpr uint32_t kNumCharsPerBatch = 1024;
+	static constexpr uint32_t kNumBatchVertices = kNumCharsPerBatch*4;
+	static constexpr uint32_t kNumBatchIndices  = kNumCharsPerBatch*6;
 
 	void TextVideoMemBlitter::init(uint8_t scale)
 	{
@@ -710,8 +710,8 @@ namespace bgfx
 
 		m_program = createProgram(vsh, fsh, true);
 
-		m_vb = s_ctx->createTransientVertexBuffer(numBatchVertices*m_layout.m_stride, &m_layout);
-		m_ib = s_ctx->createTransientIndexBuffer(numBatchIndices*2);
+		m_vb = s_ctx->createTransientVertexBuffer(kNumBatchVertices*m_layout.m_stride, &m_layout);
+		m_ib = s_ctx->createTransientIndexBuffer(kNumBatchIndices*2);
 		m_scale = bx::max<uint8_t>(scale, 1);
 	}
 
@@ -808,12 +808,12 @@ namespace bgfx
 			uint32_t startVertex = 0;
 			uint32_t numIndices = 0;
 
-			for (; yy < _mem.m_height && numIndices < numBatchIndices; ++yy)
+			for (; yy < _mem.m_height && numIndices < kNumBatchIndices; ++yy)
 			{
 				xx = xx < _mem.m_width ? xx : 0;
 				const TextVideoMem::MemSlot* line = &_mem.m_mem[yy*_mem.m_width+xx];
 
-				for (; xx < _mem.m_width && numIndices < numBatchIndices; ++xx)
+				for (; xx < _mem.m_width && numIndices < kNumBatchIndices; ++xx)
 				{
 					uint32_t ch = line->character;
 					const uint8_t attr = line->attribute;
@@ -856,7 +856,7 @@ namespace bgfx
 					line++;
 				}
 
-				if (numIndices >= numBatchIndices)
+				if (numIndices >= kNumBatchIndices)
 				{
 					break;
 				}
@@ -988,6 +988,7 @@ namespace bgfx
 		"u_invViewProj",
 		"u_model",
 		"u_modelView",
+		"u_invModelView",
 		"u_modelViewProj",
 		"u_alphaRef4",
 	};
@@ -4058,8 +4059,8 @@ namespace bgfx
 		uint32_t dstWidth  = bx::max<uint32_t>(1, dst.m_width  >> _dstMip);
 		uint32_t dstHeight = bx::max<uint32_t>(1, dst.m_height >> _dstMip);
 
-		uint32_t srcDepth  = src.isCubeMap() ? 6 : bx::max<uint32_t>(1, src.m_depth >> _srcMip);
-		uint32_t dstDepth  = dst.isCubeMap() ? 6 : bx::max<uint32_t>(1, dst.m_depth >> _dstMip);
+		uint32_t srcDepth  = src.isCubeMap() ? 6 * src.m_numLayers : src.m_numLayers > 1 ? src.m_numLayers : bx::max<uint32_t>(1, src.m_depth >> _srcMip);
+		uint32_t dstDepth  = dst.isCubeMap() ? 6 * src.m_numLayers : src.m_numLayers > 1 ? src.m_numLayers : bx::max<uint32_t>(1, dst.m_depth >> _dstMip);
 
 		BX_ASSERT(_srcX < srcWidth && _srcY < srcHeight && _srcZ < srcDepth
 			, "Blit src coordinates out of range (%d, %d, %d) >= (%d, %d, %d)"
