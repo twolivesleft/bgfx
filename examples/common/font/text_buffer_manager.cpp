@@ -673,9 +673,9 @@ void TextBuffer::appendGlyph(FontHandle _handle, CodePoint _codePoint, bool shad
 		float y1 = y0 + font.underlineThickness;
 
         x0 += _modifier->offsetX;
-        y0 += _modifier->offsetY;
+        y0 -= _modifier->offsetY;
         x1 += _modifier->offsetX;
-        y1 += _modifier->offsetY;
+        y1 -= _modifier->offsetY;
         
 		atlas->packUV(blackGlyph.regionIndex
 			, (uint8_t*)m_vertexBuffer
@@ -707,9 +707,9 @@ void TextBuffer::appendGlyph(FontHandle _handle, CodePoint _codePoint, bool shad
 		float y1 = y0 + font.underlineThickness;
 
         x0 += _modifier->offsetX;
-        y0 += _modifier->offsetY;
+        y0 -= _modifier->offsetY;
         x1 += _modifier->offsetX;
-        y1 += _modifier->offsetY;
+        y1 -= _modifier->offsetY;
 
 		m_fontManager->getAtlas()->packUV(blackGlyph.regionIndex
 			, (uint8_t*)m_vertexBuffer
