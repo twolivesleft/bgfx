@@ -4210,9 +4210,20 @@ VK_IMPORT_DEVICE
 
 				case UniformType::Sampler:
 				case UniformType::Sampler|kUniformFragmentBit:
-					// do nothing, but VkDescriptorSetImageInfo would be set before drawing
 					break;
 
+				case UniformType::UInt:
+				case UniformType::UInt | kUniformFragmentBit:
+				case UniformType::Int:
+				case UniformType::Int | kUniformFragmentBit:
+				case UniformType::Bool:
+				case UniformType::Bool | kUniformFragmentBit:
+				case UniformType::Float:
+				case UniformType::Float | kUniformFragmentBit:
+				case UniformType::Vec2:
+				case UniformType::Vec2 | kUniformFragmentBit:
+				case UniformType::Vec3:
+				case UniformType::Vec3 | kUniformFragmentBit:
 				case UniformType::Vec4:
 				case UniformType::Vec4 | kUniformFragmentBit:
 				case UniformType::Mat4:
