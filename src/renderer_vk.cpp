@@ -2400,6 +2400,11 @@ VK_IMPORT_DEVICE
 			bgfx::release(mem);
 		}
 
+		void generateMipmaps(TextureHandle /*_handle*/) override
+		{
+			// TODO: Implement Vulkan mipmap generation (vkCmdBlitImage)
+		}
+
 		void overrideInternal(TextureHandle /*_handle*/, uintptr_t /*_ptr*/) override
 		{
 		}
