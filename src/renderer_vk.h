@@ -868,7 +868,7 @@ VK_DESTROY_FUNC(DescriptorSet);
 
 	struct CommandQueueVK
 	{
-		VkResult init(uint32_t _queueFamily, VkQueue _queue, uint32_t _numFramesInFlight);
+		VkResult init(uint32_t _queueFamily, VkQueue _queue);
 		VkResult reset();
 		void shutdown();
 
@@ -884,8 +884,6 @@ VK_DESTROY_FUNC(DescriptorSet);
 
 		uint32_t m_queueFamily;
 		VkQueue m_queue;
-
-		uint32_t m_numFramesInFlight;
 
 		uint32_t m_currentFrameInFlight;
 		uint32_t m_consumeIndex;

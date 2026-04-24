@@ -1551,6 +1551,18 @@ VK_IMPORT_INSTANCE
 
 				BX_TRACE("Using physical device %d: %s", physicalDeviceIdx, m_deviceProperties.deviceName);
 
+				// Detect the Android emulator's gfxstream Vulkan translation layer. gfxstream
+				// fails to invalidate host-side descriptor set tracking on vkResetDescriptorPool,
+				// causing later vkUpdateDescriptorSets to crash with a null deref in
+				// get_host_u64_VkDescriptorSet. On that driver we destroy+recreate the pool
+				// each frame instead. gfxstream exposes the host's Mesa llvmpipe software
+				// renderer to the guest; on a real Android device the driver is always
+				// Mali/Adreno/PowerVR/etc., never llvmpipe. Restricting the check to Android
+				// avoids penalising desktop users running Vulkan via llvmpipe (where the bug
+				// does not apply).
+				m_requiresDescriptorPoolRecreate = BX_ENABLED(BX_PLATFORM_ANDROID)
+					&& !bx::strFind(m_deviceProperties.deviceName, "llvmpipe").isEmpty();
+
 				VkPhysicalDeviceFeatures supportedFeatures;
 
 				if (s_extension[Extension::KHR_get_physical_device_properties2].m_supported)
@@ -1907,12 +1919,12 @@ VK_IMPORT_DEVICE
 			vkGetDeviceQueue(m_device, m_globalQueueFamily, 0, &m_globalQueue);
 
 			{
-				m_numFramesInFlight = _init.resolution.maxFrameLatency == 0
+				m_maxFrameLatency = _init.resolution.maxFrameLatency == 0
 					? BGFX_CONFIG_MAX_FRAME_LATENCY
 					: _init.resolution.maxFrameLatency
 					;
 
-				result = m_cmd.init(m_globalQueueFamily, m_globalQueue, m_numFramesInFlight);
+				result = m_cmd.init(m_globalQueueFamily, m_globalQueue);
 
 				if (VK_SUCCESS != result)
 				{
@@ -1984,12 +1996,15 @@ VK_IMPORT_DEVICE
 				dpci.poolSizeCount = BX_COUNTOF(dps);
 				dpci.pPoolSizes    = dps;
 
-				result = vkCreateDescriptorPool(m_device, &dpci, m_allocatorCb, &m_descriptorPool);
-
-				if (VK_SUCCESS != result)
+				for (uint32_t ii = 0; ii < m_maxFrameLatency; ++ii)
 				{
-					BX_TRACE("Init error: vkCreateDescriptorPool failed %d: %s.", result, getName(result) );
-					goto error;
+					result = vkCreateDescriptorPool(m_device, &dpci, m_allocatorCb, &m_descriptorPool[ii]);
+
+					if (VK_SUCCESS != result)
+					{
+						BX_TRACE("Init error: vkCreateDescriptorPool failed %d: %s.", result, getName(result) );
+						goto error;
+					}
 				}
 
 				VkPipelineCacheCreateInfo pcci;
@@ -2011,13 +2026,13 @@ VK_IMPORT_DEVICE
 				const uint32_t size = 128;
 				const uint32_t count = BGFX_CONFIG_MAX_DRAW_CALLS;
 
-				for (uint32_t ii = 0; ii < m_numFramesInFlight; ++ii)
+				for (uint32_t ii = 0; ii < m_maxFrameLatency; ++ii)
 				{
 					BX_TRACE("Create scratch buffer %d", ii);
 					m_scratchBuffer[ii].createUniform(size, count);
 				}
 
-				for (uint32_t ii = 0; ii < m_numFramesInFlight; ++ii)
+				for (uint32_t ii = 0; ii < m_maxFrameLatency; ++ii)
 				{
 					BX_TRACE("Create scratch staging buffer %d", ii);
 					m_scratchStagingBuffer[ii].createStaging(BGFX_CONFIG_PER_FRAME_SCRATCH_STAGING_BUFFER_SIZE);
@@ -2085,13 +2100,13 @@ VK_IMPORT_DEVICE
 				[[fallthrough]];
 
 			case ErrorState::DescriptorCreated:
-				for (uint32_t ii = 0; ii < m_numFramesInFlight; ++ii)
+				for (uint32_t ii = 0; ii < m_maxFrameLatency; ++ii)
 				{
 					m_scratchBuffer[ii].destroy();
 					m_scratchStagingBuffer[ii].destroy();
+					vkDestroy(m_descriptorPool[ii]);
 				}
 				vkDestroy(m_pipelineCache);
-				vkDestroy(m_descriptorPool);
 				[[fallthrough]];
 
 			case ErrorState::SwapChainCreated:
@@ -2148,12 +2163,12 @@ VK_IMPORT_DEVICE
 			m_samplerBorderColorCache.invalidate();
 			m_imageViewCache.invalidate();
 
-			for (uint32_t ii = 0; ii < m_numFramesInFlight; ++ii)
+			for (uint32_t ii = 0; ii < m_maxFrameLatency; ++ii)
 			{
 				m_scratchBuffer[ii].destroy();
 			}
 
-			for (uint32_t ii = 0; ii < m_numFramesInFlight; ++ii)
+			for (uint32_t ii = 0; ii < m_maxFrameLatency; ++ii)
 			{
 				m_scratchStagingBuffer[ii].destroy();
 			}
@@ -2190,7 +2205,11 @@ VK_IMPORT_DEVICE
 			m_cmd.shutdown();
 
 			vkDestroy(m_pipelineCache);
-			vkDestroy(m_descriptorPool);
+
+			for (uint32_t ii = 0; ii < m_maxFrameLatency; ++ii)
+			{
+				vkDestroy(m_descriptorPool[ii]);
+			}
 
 			vkDestroyDevice(m_device, m_allocatorCb);
 
@@ -3843,7 +3862,7 @@ VK_IMPORT_DEVICE
 			VkDescriptorSetAllocateInfo dsai;
 			dsai.sType              = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 			dsai.pNext              = NULL;
-			dsai.descriptorPool     = m_descriptorPool;
+			dsai.descriptorPool     = m_descriptorPool[m_cmd.m_currentFrameInFlight];
 			dsai.descriptorSetCount = 1;
 			dsai.pSetLayouts        = &program.m_descriptorSetLayout;
 
@@ -4587,15 +4606,17 @@ VK_IMPORT_DEVICE
 		ScratchBufferVK m_scratchBuffer[BGFX_CONFIG_MAX_FRAME_LATENCY];
 		ScratchBufferVK m_scratchStagingBuffer[BGFX_CONFIG_MAX_FRAME_LATENCY];
 
-		uint32_t        m_numFramesInFlight;
+		uint32_t        m_maxFrameLatency;
 		CommandQueueVK  m_cmd;
 		VkCommandBuffer m_commandBuffer;
 
 		VkDevice m_device;
 		uint32_t m_globalQueueFamily;
 		VkQueue  m_globalQueue;
-		VkDescriptorPool m_descriptorPool;
+		VkDescriptorPool m_descriptorPool[BGFX_CONFIG_MAX_FRAME_LATENCY];
 		VkPipelineCache  m_pipelineCache;
+
+		bool m_requiresDescriptorPoolRecreate = false;
 
 		TimerQueryVK m_gpuTimer;
 		OcclusionQueryVK m_occlusionQuery;
@@ -4700,8 +4721,6 @@ VK_DESTROY
 	{
 		if (VK_NULL_HANDLE != _obj)
 		{
-			BGFX_PROFILER_SCOPE("vkFreeDescriptorSets", kColorResource);
-			vkFreeDescriptorSets(s_renderVK->m_device, s_renderVK->m_descriptorPool, 1, &_obj);
 			_obj = VK_NULL_HANDLE;
 		}
 	}
@@ -5660,7 +5679,7 @@ VK_DESTROY
 
 		Query& query = m_query[_idx];
 		query.m_ready = true;
-		query.m_completed = s_renderVK->m_cmd.m_submitted + s_renderVK->m_cmd.m_numFramesInFlight;
+		query.m_completed = s_renderVK->m_cmd.m_submitted + s_renderVK->m_maxFrameLatency;
 
 		const VkCommandBuffer commandBuffer = s_renderVK->m_commandBuffer;
 		const uint32_t offset = _idx * 2 + 0;
@@ -8193,13 +8212,12 @@ VK_DESTROY
 			;
 	}
 
-	VkResult CommandQueueVK::init(uint32_t _queueFamily, VkQueue _queue, uint32_t _numFramesInFlight)
+	VkResult CommandQueueVK::init(uint32_t _queueFamily, VkQueue _queue)
 	{
-		m_queueFamily = _queueFamily;
-		m_queue = _queue;
-		m_numFramesInFlight = bx::clamp<uint32_t>(_numFramesInFlight, 1, BGFX_CONFIG_MAX_FRAME_LATENCY);
+		m_queueFamily         = _queueFamily;
+		m_queue               = _queue;
 		m_activeCommandBuffer = VK_NULL_HANDLE;
-		m_consumeIndex = 0;
+		m_consumeIndex        = 0;
 
 		return reset();
 	}
@@ -8239,7 +8257,10 @@ VK_DESTROY
 
 		VkResult result = VK_SUCCESS;
 
-		for (uint32_t ii = 0; ii < m_numFramesInFlight; ++ii)
+		const VkAllocationCallbacks* allocatorCb = s_renderVK->m_allocatorCb;
+		const VkDevice device = s_renderVK->m_device;
+
+		for (uint32_t ii = 0, maxFrameLatency = s_renderVK->m_maxFrameLatency; ii < maxFrameLatency; ++ii)
 		{
 			result = vkCreateCommandPool(
 				  s_renderVK->m_device
@@ -8290,7 +8311,7 @@ VK_DESTROY
 		kick(true);
 		finish(true);
 
-		for (uint32_t ii = 0; ii < m_numFramesInFlight; ++ii)
+		for (uint32_t ii = 0, maxFrameLatency = s_renderVK->m_maxFrameLatency; ii < maxFrameLatency; ++ii)
 		{
 			vkDestroy(m_commandList[ii].m_fence);
 			m_commandList[ii].m_commandBuffer = VK_NULL_HANDLE;
@@ -8421,7 +8442,7 @@ VK_DESTROY
 
 			m_activeCommandBuffer = VK_NULL_HANDLE;
 
-			m_currentFrameInFlight = (m_currentFrameInFlight + 1) % m_numFramesInFlight;
+			m_currentFrameInFlight = (m_currentFrameInFlight + 1) % s_renderVK->m_maxFrameLatency;
 			m_submitted++;
 		}
 	}
@@ -8432,7 +8453,7 @@ VK_DESTROY
 
 		if (_finishAll)
 		{
-			for (uint32_t ii = 0; ii < m_numFramesInFlight; ++ii)
+			for (uint32_t ii = 0, maxFrameLatency = s_renderVK->m_maxFrameLatency; ii < maxFrameLatency; ++ii)
 			{
 				consume();
 			}
@@ -8462,12 +8483,13 @@ VK_DESTROY
 	{
 		BGFX_PROFILER_SCOPE("CommandQueueVK::consume", kColorResource);
 
-		m_consumeIndex = (m_consumeIndex + 1) % m_numFramesInFlight;
+		m_consumeIndex = (m_consumeIndex + 1) % s_renderVK->m_maxFrameLatency;
 
 		for (DeviceMemoryAllocationVK &alloc : m_recycleAllocs[m_consumeIndex])
 		{
 			s_renderVK->m_memoryLru.recycle(alloc);
 		}
+
 		m_recycleAllocs[m_consumeIndex].clear();
 
 		for (const Resource& resource : m_release[m_consumeIndex])
@@ -8707,6 +8729,37 @@ VK_DESTROY
 		const uint64_t f1 = BGFX_STATE_BLEND_INV_FACTOR;
 		const uint64_t f2 = BGFX_STATE_BLEND_FACTOR<<4;
 		const uint64_t f3 = BGFX_STATE_BLEND_INV_FACTOR<<4;
+
+		VkDescriptorPool& descriptorPool = m_descriptorPool[m_cmd.m_currentFrameInFlight];
+		if (m_requiresDescriptorPoolRecreate)
+		{
+			// gfxstream workaround — see m_requiresDescriptorPoolRecreate detection above.
+			vkDestroyDescriptorPool(m_device, descriptorPool, m_allocatorCb);
+			descriptorPool = VK_NULL_HANDLE;
+
+			VkDescriptorPoolSize dps[] =
+			{
+				{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE,          BGFX_CONFIG_RENDERER_VULKAN_MAX_DESCRIPTOR_SETS_PER_FRAME * BGFX_CONFIG_MAX_TEXTURE_SAMPLERS },
+				{ VK_DESCRIPTOR_TYPE_SAMPLER,                BGFX_CONFIG_RENDERER_VULKAN_MAX_DESCRIPTOR_SETS_PER_FRAME * BGFX_CONFIG_MAX_TEXTURE_SAMPLERS },
+				{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, BGFX_CONFIG_RENDERER_VULKAN_MAX_DESCRIPTOR_SETS_PER_FRAME * 2                                },
+				{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,         BGFX_CONFIG_RENDERER_VULKAN_MAX_DESCRIPTOR_SETS_PER_FRAME * BGFX_CONFIG_MAX_TEXTURE_SAMPLERS },
+				{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,          BGFX_CONFIG_RENDERER_VULKAN_MAX_DESCRIPTOR_SETS_PER_FRAME * BGFX_CONFIG_MAX_TEXTURE_SAMPLERS },
+			};
+
+			VkDescriptorPoolCreateInfo dpci;
+			dpci.sType         = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+			dpci.pNext         = NULL;
+			dpci.flags         = 0;
+			dpci.maxSets       = BGFX_CONFIG_RENDERER_VULKAN_MAX_DESCRIPTOR_SETS_PER_FRAME;
+			dpci.poolSizeCount = BX_COUNTOF(dps);
+			dpci.pPoolSizes    = dps;
+
+			VK_CHECK(vkCreateDescriptorPool(m_device, &dpci, m_allocatorCb, &descriptorPool));
+		}
+		else
+		{
+			vkResetDescriptorPool(m_device, descriptorPool, 0);
+		}
 
 		ScratchBufferVK& scratchBuffer = m_scratchBuffer[m_cmd.m_currentFrameInFlight];
 		ScratchBufferVK& scratchStagingBuffer = m_scratchStagingBuffer[m_cmd.m_currentFrameInFlight];
