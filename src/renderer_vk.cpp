@@ -6092,6 +6092,21 @@ VK_DESTROY
 		result = vkCreateImage(device, &ici, allocatorCb, &m_textureImage);
 		if (VK_SUCCESS != result)
 		{
+			// If creating an sRGB image failed, fall back to the equivalent non-sRGB format.
+			// This handles drivers (e.g. gfxstream on Android emulator) that claim sRGB support
+			// via vkGetPhysicalDeviceImageFormatProperties but then reject the image at creation.
+			const VkFormat nonSrgbFmt = s_textureFormat[m_textureFormat].m_fmt;
+			if (ici.format != nonSrgbFmt && nonSrgbFmt != VK_FORMAT_UNDEFINED)
+			{
+				m_textureImage = VK_NULL_HANDLE;
+				ici.format = nonSrgbFmt;
+				m_format = nonSrgbFmt;
+				result = vkCreateImage(device, &ici, allocatorCb, &m_textureImage);
+			}
+		}
+
+		if (VK_SUCCESS != result)
+		{
 			BX_TRACE("Create texture image error: vkCreateImage failed %d: %s.", result, getName(result) );
 			return result;
 		}
