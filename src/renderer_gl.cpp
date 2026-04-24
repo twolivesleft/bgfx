@@ -3497,6 +3497,14 @@ namespace bgfx { namespace gl
 			release(mem);
 		}
 
+		void generateMipmaps(TextureHandle _handle) override
+		{
+			TextureGL& texture = m_textures[_handle.idx];
+			GL_CHECK(glBindTexture(texture.m_target, texture.m_id) );
+			GL_CHECK(glGenerateMipmap(texture.m_target) );
+			GL_CHECK(glBindTexture(texture.m_target, 0) );
+		}
+
 		void overrideInternal(TextureHandle _handle, uintptr_t _ptr) override
 		{
 			m_textures[_handle.idx].overrideInternal(_ptr);
@@ -5703,10 +5711,15 @@ namespace bgfx { namespace gl
 			m_requestedFormat  = uint8_t(imageContainer.m_format);
 			m_textureFormat    = uint8_t(getViableTextureFormat(imageContainer) );
 
-			const bool computeWrite = 0 != (_flags&BGFX_TEXTURE_COMPUTE_WRITE);
-			const bool srgb         = 0 != (_flags&BGFX_TEXTURE_SRGB);
-			const bool msaaSample   = 0 != (_flags&BGFX_TEXTURE_MSAA_SAMPLE);
-			uint32_t msaaQuality = ( (_flags&BGFX_TEXTURE_RT_MSAA_MASK)>>BGFX_TEXTURE_RT_MSAA_SHIFT);
+			uint64_t flags = _flags;
+#if BX_PLATFORM_EMSCRIPTEN
+			flags &= ~BGFX_TEXTURE_COMPUTE_WRITE;
+#endif
+
+			const bool computeWrite = 0 != (flags&BGFX_TEXTURE_COMPUTE_WRITE);
+			const bool srgb         = 0 != (flags&BGFX_TEXTURE_SRGB);
+			const bool msaaSample   = 0 != (flags&BGFX_TEXTURE_MSAA_SAMPLE);
+			uint32_t msaaQuality = ( (flags&BGFX_TEXTURE_RT_MSAA_MASK)>>BGFX_TEXTURE_RT_MSAA_SHIFT);
 			msaaQuality = bx::uint32_satsub(msaaQuality, 1);
 			msaaQuality = bx::uint32_min(s_renderGL->m_maxMsaa, msaaQuality == 0 ? 0 : 1<<msaaQuality);
 
@@ -5736,7 +5749,7 @@ namespace bgfx { namespace gl
 				, ti.height
 				, textureArray ? ti.numLayers : ti.depth
 				, ti.numMips
-				, _flags
+				, flags
 				) )
 			{
 				return;
