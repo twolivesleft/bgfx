@@ -261,8 +261,8 @@ Atlas::Atlas(uint16_t _textureSize, uint16_t _maxRegionsCount)
 
 	m_texelSize = float(UINT16_MAX) / float(m_textureSize);
 
-	m_layers = new PackedLayer[6];
-	for (int ii = 0; ii < 6; ++ii)
+	m_layers = new PackedLayer[24];
+	for (int ii = 0; ii < 24; ++ii)
 	{
 		m_layers[ii].packer.init(_textureSize, _textureSize);
 	}
@@ -336,15 +336,17 @@ uint16_t Atlas::addRegion(uint16_t _width, uint16_t _height, const uint8_t* _bit
 
 	if (idx >= m_usedLayers)
 	{
-		if ( (idx + _type) > 24
+		// A gray face packs one layer into each of its four color components.
+		const uint32_t numLayers = _type == AtlasRegion::TYPE_GRAY ? 4 : 1;
+
+		if ( (idx + numLayers) > 24
 		|| m_usedFaces >= 6)
 		{
 			return UINT16_MAX;
 		}
 
-		//for (int ii = 0; ii < _type; ++ii)
+		for (uint32_t ii = 0; ii < numLayers; ++ii)
 		{
-			int ii = 0;
 			AtlasRegion& region = m_layers[idx + ii].faceRegion;
 			region.x = 0;
 			region.y = 0;
@@ -353,7 +355,7 @@ uint16_t Atlas::addRegion(uint16_t _width, uint16_t _height, const uint8_t* _bit
 			region.setMask(_type, m_usedFaces, ii);
 		}
 
-		m_usedLayers++;
+		m_usedLayers += numLayers;
 		m_usedFaces++;
 
 		if (!m_layers[idx].packer.addRectangle(_width + 1, _height + 1, xx, yy) )
