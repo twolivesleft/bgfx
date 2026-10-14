@@ -1495,6 +1495,7 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 
 				const uint32_t vertexUniformBufferSize   = pso->m_vshConstantBufferSize;
 				const uint32_t fragmentUniformBufferSize = pso->m_fshConstantBufferSize;
+				reserveUniformBuffer(vertexUniformBufferSize + fragmentUniformBufferSize);
 
 				if (vertexUniformBufferSize)
 				{
@@ -1777,6 +1778,27 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 			bx::memCopy(&dst[offset + _loc], _val, _numRegs*16);
 		}
 
+		// Frames with more uniform data than the buffer holds continue in a larger buffer. Command buffers
+		// retain the buffers they use, so the old one stays alive until the GPU has finished with it
+		void reserveUniformBuffer(uint32_t _size)
+		{
+			const uint32_t required = m_uniformBufferVertexOffset + _size + 2 * 256; // Alignment of both stages
+			if (required <= m_uniformBuffer.length() )
+			{
+				return;
+			}
+
+			const uint32_t length = bx::max(m_uniformBuffer.length() * 2, _size + 2 * 256);
+			BX_TRACE("Uniform buffer %d grown to %u bytes", m_uniformBufferIndex, length);
+
+			Buffer buffer = m_device.newBufferWithLength(length, 0);
+			MTL_RELEASE(m_uniformBuffers[m_uniformBufferIndex]);
+			m_uniformBuffers[m_uniformBufferIndex] = buffer;
+			m_uniformBuffer = buffer;
+			m_uniformBufferVertexOffset   = 0;
+			m_uniformBufferFragmentOffset = 0;
+		}
+
 		void setShaderUniform4f(uint8_t _flags, uint32_t _loc, const void* _val, uint32_t _numRegs)
 		{
 			setShaderUniform(_flags, _loc, _val, _numRegs);
@@ -1918,6 +1940,7 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 
 			const uint32_t vertexUniformBufferSize   = pso->m_vshConstantBufferSize;
 			const uint32_t fragmentUniformBufferSize = pso->m_fshConstantBufferSize;
+			reserveUniformBuffer(vertexUniformBufferSize + fragmentUniformBufferSize);
 
 			if (0 != vertexUniformBufferSize)
 			{
@@ -2829,6 +2852,7 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 
 		Buffer   m_uniformBuffer;
 		Buffer   m_uniformBuffers[BGFX_CONFIG_MAX_FRAME_LATENCY];
+		uint8_t  m_uniformBufferIndex = 0;
 		uint32_t m_uniformBufferVertexOffset;
 		uint32_t m_uniformBufferFragmentOffset;
 
@@ -4394,6 +4418,7 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 			MTL_RELEASE(m_screenshotTarget);
 		}
 
+		m_uniformBufferIndex = m_bufferIndex;
 		m_uniformBuffer = m_uniformBuffers[m_bufferIndex];
 		m_bufferIndex = (m_bufferIndex + 1) % BGFX_CONFIG_MAX_FRAME_LATENCY;
 		m_uniformBufferVertexOffset = 0;
@@ -4776,6 +4801,7 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 					&&  NULL != currentPso)
 					{
 						uint32_t vertexUniformBufferSize = currentPso->m_vshConstantBufferSize;
+						reserveUniformBuffer(vertexUniformBufferSize);
 
 						if (0 != vertexUniformBufferSize)
 						{
@@ -5160,6 +5186,7 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 				{
 					const uint32_t vertexUniformBufferSize   = currentPso->m_vshConstantBufferSize;
 					const uint32_t fragmentUniformBufferSize = currentPso->m_fshConstantBufferSize;
+					reserveUniformBuffer(vertexUniformBufferSize + fragmentUniformBufferSize);
 
 					if (0 != vertexUniformBufferSize)
 					{
