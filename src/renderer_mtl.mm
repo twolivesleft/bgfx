@@ -1778,8 +1778,8 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 			bx::memCopy(&dst[offset + _loc], _val, _numRegs*16);
 		}
 
-		// Frames with more uniform data than the buffer holds continue in a larger buffer. Command buffers
-		// retain the buffers they use, so the old one stays alive until the GPU has finished with it
+		// Frames with more uniform data than the buffer holds continue in a larger buffer. The old one is
+		// released once this frame's command buffer completes, as commands already encoded still use it
 		void reserveUniformBuffer(uint32_t _size)
 		{
 			const uint32_t required = m_uniformBufferVertexOffset + _size + 2 * 256; // Alignment of both stages
@@ -1792,7 +1792,7 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 			BX_TRACE("Uniform buffer %d grown to %u bytes", m_uniformBufferIndex, length);
 
 			Buffer buffer = m_device.newBufferWithLength(length, 0);
-			MTL_RELEASE(m_uniformBuffers[m_uniformBufferIndex]);
+			m_cmd.release(m_uniformBuffers[m_uniformBufferIndex]);
 			m_uniformBuffers[m_uniformBufferIndex] = buffer;
 			m_uniformBuffer = buffer;
 			m_uniformBufferVertexOffset   = 0;
