@@ -1059,6 +1059,7 @@ namespace bgfx { namespace mtl
 #endif
 			, m_drawable(nil)
 			, m_drawableTexture(nil)
+			, m_initializedColorTextures([[NSHashTable alloc] initWithOptions:NSPointerFunctionsWeakMemory | NSPointerFunctionsObjectPointerPersonality capacity:3])
 			, m_backBufferColorMsaa()
 			, m_backBufferDepth()
 			, m_backBufferStencil()
@@ -1084,6 +1085,7 @@ namespace bgfx { namespace mtl
 		id <CAMetalDrawable> m_drawable;
 
 		id <MTLTexture> 	 m_drawableTexture;
+		NSHashTable* m_initializedColorTextures;
 		Texture m_backBufferColorMsaa;
 		Texture m_backBufferDepth;
 		Texture m_backBufferStencil;
