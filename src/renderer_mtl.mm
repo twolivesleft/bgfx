@@ -3576,6 +3576,7 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 #endif // BX_PLATFORM_VISIONOS
 
 		MTL_RELEASE(m_drawableTexture);
+		MTL_RELEASE(m_initializedColorTextures);
 
 		MTL_RELEASE(m_backBufferDepth);
 		MTL_RELEASE(m_backBufferStencil);
@@ -3722,6 +3723,7 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 
 	void SwapChainMtl::resize(FrameBufferMtl &_frameBuffer, uint32_t _width, uint32_t _height, uint32_t _flags, uint32_t _maximumDrawableCount)
 	{
+		[m_initializedColorTextures removeAllObjects];
 		const int32_t sampleCount = s_msaa[(_flags&BGFX_RESET_MSAA_MASK)>>BGFX_RESET_MSAA_SHIFT];
 
 #if BX_PLATFORM_OSX
@@ -4688,6 +4690,24 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 								{
 									stencilAttachment.loadAction  = MTLLoadActionLoad;
 									stencilAttachment.storeAction = MTLStoreActionStore;
+								}
+							}
+
+							// A newly acquired display buffer has undefined contents. Initialize
+							// each texture once, preserving subsequent frames for drawing trails.
+							SwapChainMtl* swapChain = isValid(fbh)
+								? m_frameBuffers[fbh.idx].m_swapChain : m_mainFrameBuffer.m_swapChain;
+							if (swapChain != NULL)
+							{
+								MTLRenderPassColorAttachmentDescriptor* color = renderPassDescriptor.colorAttachments[0];
+								if (color.texture != nil && ![swapChain->m_initializedColorTextures containsObject:color.texture])
+								{
+									[swapChain->m_initializedColorTextures addObject:color.texture];
+									if (color.loadAction == MTLLoadActionLoad)
+									{
+										color.clearColor = MTLClearColorMake(0, 0, 0, 1);
+										color.loadAction = MTLLoadActionClear;
+									}
 								}
 							}
 
