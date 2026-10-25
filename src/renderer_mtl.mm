@@ -3730,8 +3730,10 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 		[m_initializedColorTextures removeAllObjects];
 		const int32_t sampleCount = s_msaa[(_flags&BGFX_RESET_MSAA_MASK)>>BGFX_RESET_MSAA_SHIFT];
 
-#if BX_PLATFORM_OSX
-#	if __MAC_OS_X_VERSION_MAX_ALLOWED >= 101300
+		// Catalyst exposes the macOS display-sync control too. Otherwise it
+		// silently keeps VSync enabled even when BGFX_RESET_VSYNC is unset.
+#if BX_PLATFORM_OSX || TARGET_OS_MACCATALYST
+#	if TARGET_OS_MACCATALYST || __MAC_OS_X_VERSION_MAX_ALLOWED >= 101300
 		if (s_renderMtl->m_hasVSync)
 		{
 			m_metalLayer.displaySyncEnabled = 0 != (_flags&BGFX_RESET_VSYNC);
@@ -3745,8 +3747,8 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 				, 3
 				);
 		}
-#	endif // __MAC_OS_X_VERSION_MAX_ALLOWED >= 101300
-#endif // BX_PLATFORM_OSX
+#	endif // TARGET_OS_MACCATALYST || __MAC_OS_X_VERSION_MAX_ALLOWED >= 101300
+#endif // BX_PLATFORM_OSX || TARGET_OS_MACCATALYST
 
 #if BX_PLATFORM_VISIONOS
 		if (!m_useLayerRenderer)
