@@ -2285,6 +2285,12 @@ func.generateMipmaps { cpponly, section = "Textures" }
 	"void"
 	.handle "TextureHandle" --- Texture handle with mip levels allocated.
 
+--- Replace an external Metal texture while retaining its BGFX handle.
+func.updateExternalTexture { cpponly, section = "Textures" }
+	"bool"
+	.handle "TextureHandle" --- Texture handle with matching dimensions and format.
+	.ptr "uintptr_t" --- Native Metal texture, retained until GPU work finishes.
+
 --- Set texture debug name.
 func.setName { cname = "set_texture_name", section = "Debug" }
 	"void"

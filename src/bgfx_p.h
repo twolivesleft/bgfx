@@ -1190,6 +1190,7 @@ namespace bgfx
 			ClearTexture,
 			ResizeTexture,
             GenerateMipmaps,
+			UpdateExternalTexture,
 			CreateFrameBuffer,
 			ResizeFrameBuffer,
 			CreateUniform,
@@ -5986,6 +5987,8 @@ namespace bgfx
 		virtual void readBuffer(Handle _handle, void* _data, uint32_t _offset, uint32_t _size) = 0;
 		virtual void resizeTexture(TextureHandle _handle, uint16_t _width, uint16_t _height, uint8_t _numMips, uint16_t _numLayers) = 0;
 		virtual void generateMipmaps(TextureHandle _handle) {}
+		virtual uintptr_t retainExternalTexture(uintptr_t /*_ptr*/) { return 0; }
+		virtual void updateExternalTexture(TextureHandle /*_handle*/, uintptr_t /*_ptr*/) {}
 		virtual uintptr_t getInternal(TextureHandle _handle) = 0;
 		virtual void destroyTexture(TextureHandle _handle) = 0;
 		virtual void createFrameBuffer(FrameBufferHandle _handle, uint8_t _num, const Attachment* _attachment) = 0;
@@ -7961,6 +7964,19 @@ namespace bgfx
             CommandBuffer& cmdbuf = getCommandBuffer(CommandBuffer::GenerateMipmaps);
             cmdbuf.write(_handle);
         }
+
+		BGFX_API_FUNC(bool updateExternalTexture(TextureHandle _handle, uintptr_t _ptr))
+		{
+			BGFX_MUTEX_SCOPE(m_resourceApiLock);
+			// Retain at enqueue time: camera capture can replace its frame before
+			// the resource command is processed. Metal adopts this retained reference.
+			uintptr_t retained = m_renderCtx->retainExternalTexture(_ptr);
+			if (0 == retained) return false;
+			CommandBuffer& cmdbuf = getCommandBuffer(CommandBuffer::UpdateExternalTexture);
+			cmdbuf.write(_handle);
+			cmdbuf.write(retained);
+			return true;
+		}
 
 		void textureTakeOwnership(TextureHandle _handle)
 		{

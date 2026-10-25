@@ -1753,6 +1753,22 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 			release(mem);
 		}
 
+		uintptr_t retainExternalTexture(uintptr_t _ptr) override
+		{
+			if (_ptr != 0) ((MTL::Texture*)_ptr)->retain();
+			return _ptr;
+		}
+
+		void updateExternalTexture(TextureHandle _handle, uintptr_t _ptr) override
+		{
+			TextureMtl& texture = m_textures[_handle.idx];
+			texture.destroy();
+			// Adopt the reference retained when the command was enqueued. Destruction
+			// defers its release until the unretained Metal command buffers complete.
+			texture.m_flags &= ~BGFX_SAMPLER_INTERNAL_SHARED;
+			texture.m_ptr = (MTL::Texture*)_ptr;
+		}
+
 		uintptr_t getInternal(TextureHandle _handle) override
 		{
 			return uintptr_t(m_textures[_handle.idx].m_ptr);

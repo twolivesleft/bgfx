@@ -4408,6 +4408,16 @@ namespace bgfx
                     m_renderCtx->generateMipmaps(handle);
                 }
                 break;
+			case CommandBuffer::UpdateExternalTexture:
+				{
+					TextureHandle handle;
+					uintptr_t ptr;
+					_cmdbuf.read(handle);
+					_cmdbuf.read(ptr);
+					flushTextureUpdateBatch(_cmdbuf);
+					m_renderCtx->updateExternalTexture(handle, ptr);
+				}
+				break;
 			case CommandBuffer::DestroyTexture:
 				{
 					BGFX_PROFILER_SCOPE("DestroyTexture", kColorResource);
@@ -7041,6 +7051,13 @@ namespace bgfx
         //BGFX_CHECK_CAPS(BGFX_CAPS_FORMAT_TEXTURE_MIP_AUTOGEN, "Texture mipmap generation is not supported!");
         return s_ctx->generateMipmaps(_handle);
     }
+
+	bool updateExternalTexture(TextureHandle _handle, uintptr_t _ptr)
+	{
+		BGFX_CHECK_HANDLE("updateExternalTexture", s_ctx->m_textureHandle, _handle);
+		BX_ASSERT(0 != _ptr, "External texture must not be null.");
+		return s_ctx->updateExternalTexture(_handle, _ptr);
+	}
 
 	FrameBufferHandle createFrameBuffer(uint16_t _width, uint16_t _height, TextureFormat::Enum _format, uint64_t _textureFlags)
 	{

@@ -3736,6 +3736,10 @@ namespace bgfx
 
     void generateMipmaps(TextureHandle _handle);
 
+	/// Replace an external Metal texture without invalidating cached texture handles.
+	/// The backend retains the native texture until queued GPU work has finished.
+	bool updateExternalTexture(TextureHandle _handle, uintptr_t _ptr);
+
 	/// Set texture debug name.
 	///
 	/// @param[in] _handle Texture handle.
