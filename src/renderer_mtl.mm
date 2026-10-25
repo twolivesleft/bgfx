@@ -1227,7 +1227,11 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 
 			FrameBufferMtl& fb = m_frameBuffers[_handle.idx];
 			fb.create(denseIdx, _nwh, _width, _height, _format, _depthFormat);
-			fb.m_swapChain->resize(m_frameBuffers[_handle.idx], _width, _height, m_resolution.reset, m_resolution.maxFrameLatency);
+			// Secondary swapchains take their sRGB setting from their own layer.
+			uint32_t flags = m_resolution.reset & ~BGFX_RESET_SRGB_BACKBUFFER;
+			if (fb.m_swapChain->m_metalLayer.pixelFormat == MTLPixelFormatBGRA8Unorm_sRGB)
+				flags |= BGFX_RESET_SRGB_BACKBUFFER;
+			fb.m_swapChain->resize(fb, _width, _height, flags, m_resolution.maxFrameLatency);
 		}
 
 		void destroyFrameBuffer(FrameBufferHandle _handle) override
@@ -3713,7 +3717,7 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 			}
 
 			m_metalLayer.device      = s_renderMtl->m_device;
-			m_metalLayer.pixelFormat = MTLPixelFormatBGRA8Unorm;
+			// Preserve the caller's per-window pixel format.
 			m_metalLayer.magnificationFilter = kCAFilterNearest;
 			retain(m_metalLayer);
 		}
