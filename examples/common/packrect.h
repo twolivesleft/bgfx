@@ -1,12 +1,10 @@
 /*
- * Copyright 2011-2025 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2026 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
  */
 
 #ifndef RECTPACK_H_HEADER_GUARD
 #define RECTPACK_H_HEADER_GUARD
-
-#include <bx/uint32_t.h>
 
 struct Pack2D
 {
@@ -53,7 +51,7 @@ public:
 		for (uint16_t starty = 0; starty <= numy; ++starty)
 		{
 			uint64_t mem = m_mem[starty];
-			uint16_t ntz = (uint16_t)bx::uint64_cnttz(mem);
+			uint16_t ntz = bx::countTrailingZeros(mem);
 			uint64_t mask = scan<<ntz;
 
 			for (uint16_t xx = ntz; xx <= numx; ++xx, mask <<= 1)

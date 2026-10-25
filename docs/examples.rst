@@ -692,7 +692,7 @@ Reference(s):
 
 
 `49-hextile  <https://github.com/bkaradzic/bgfx/tree/master/examples/49-hextile>`__
----------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------
 
 Realtime Hex-Tiling
 
@@ -704,3 +704,34 @@ Reference(s):
 
 .. figure:: https://github.com/bkaradzic/bgfx/raw/master/examples/49-hextile/screenshot.png
    :alt: example-49-hextile
+
+`50-headless <https://github.com/bkaradzic/bgfx/tree/master/examples/50-headless>`__
+------------------------------------------------------------------------------------
+
+Demonstrate running bgfx in headless mode. Initialize bgfx without window, render into frame buffer,
+and output result into an image.
+
+`51-gpufont <https://github.com/bkaradzic/bgfx/tree/master/examples/51-gpufont>`__
+----------------------------------------------------------------------------------
+
+GPU font rendering using the Slug algorithm.
+
+Slug reference shaders by Eric Lengyel (MIT License).
+https://github.com/EricLengyel/Slug?tab=readme-ov-file#slug
+
+For more information see:
+https://sluglibrary.com/
+
+.. figure:: https://github.com/bkaradzic/bgfx/raw/master/examples/51-gpufont/screenshot.png
+   :alt: example-51-gpufont
+
+`55-hdr10 <https://github.com/bkaradzic/bgfx/tree/master/examples/55-hdr10>`__
+------------------------------------------------------------------------------
+
+HDR10 test pattern. Gray steps at 0 to 10000 nits and BT.2020 color bars at 203 nits, PQ encoded into
+an RGB10A2 back buffer, or as multiples of SDR white in an RGBA16F extended linear back buffer. HDR10
+can be toggled to compare HDR output against SDR on an HDR capable display.
+
+Reference(s):
+ - `ITU-R BT.2100 <https://www.itu.int/rec/R-REC-BT.2100>`__.
+ - `ITU-R BT.2408 <https://www.itu.int/pub/R-REP-BT.2408>`__.

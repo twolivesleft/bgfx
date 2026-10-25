@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2025 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2026 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
  */
 
@@ -103,8 +103,8 @@ static bgfx::ShaderHandle loadShader(bx::FileReaderI* _reader, const bx::StringV
 	switch (bgfx::getRendererType() )
 	{
 	case bgfx::RendererType::Noop:
-	case bgfx::RendererType::Direct3D11:
-	case bgfx::RendererType::Direct3D12: filePath.join("dx11");  break;
+	case bgfx::RendererType::Direct3D11: filePath.join("dxbc");  break;
+	case bgfx::RendererType::Direct3D12: filePath.join("dxil");  break;
 	case bgfx::RendererType::Agc:
 	case bgfx::RendererType::Gnm:        filePath.join("pssl");  break;
 	case bgfx::RendererType::Metal:      filePath.join("metal"); break;
@@ -112,6 +112,7 @@ static bgfx::ShaderHandle loadShader(bx::FileReaderI* _reader, const bx::StringV
 	case bgfx::RendererType::OpenGL:     filePath.join("glsl");  break;
 	case bgfx::RendererType::OpenGLES:   filePath.join("essl");  break;
 	case bgfx::RendererType::Vulkan:     filePath.join("spirv"); break;
+	case bgfx::RendererType::WebGPU:     filePath.join("wgsl");  break;
 
 	case bgfx::RendererType::Count:
 		BX_ASSERT(false, "You should not be here!");
@@ -125,7 +126,10 @@ static bgfx::ShaderHandle loadShader(bx::FileReaderI* _reader, const bx::StringV
 	filePath.join(fileName);
 
 	bgfx::ShaderHandle handle = bgfx::createShader(loadMem(_reader, filePath.getCPtr() ) );
-	bgfx::setName(handle, _name.getPtr(), _name.getLength() );
+	if (bgfx::isValid(handle) )
+	{
+		bgfx::setName(handle, _name.getPtr(), _name.getLength() );
+	}
 
 	return handle;
 }
@@ -159,16 +163,29 @@ static void imageReleaseCb(void* _ptr, void* _userData)
 	bimg::imageFree(imageContainer);
 }
 
-bgfx::TextureHandle loadTexture(bx::FileReaderI* _reader, const bx::FilePath& _filePath, uint64_t _flags, uint8_t _skip, bgfx::TextureInfo* _info, bimg::Orientation::Enum* _orientation)
+bgfx::TextureHandle loadTexture(bx::FileReaderI* _reader, const bx::FilePath& _filePath, uint64_t _flags, uint8_t _skip, bgfx::TextureInfo* _info, bimg::Orientation::Enum* _orientation, bx::Error* _err)
 {
 	BX_UNUSED(_skip);
 	bgfx::TextureHandle handle = BGFX_INVALID_HANDLE;
+
+	if (NULL != _info)
+	{
+		bx::memSet(_info, 0, sizeof(*_info) );
+		_info->format = bgfx::TextureFormat::Unknown;
+	}
+
+	if (NULL != _orientation)
+	{
+		*_orientation = bimg::Orientation::R0;
+	}
 
 	uint32_t size;
 	void* data = load(_reader, entry::getAllocator(), _filePath, &size);
 	if (NULL != data)
 	{
-		bimg::ImageContainer* imageContainer = bimg::imageParse(entry::getAllocator(), data, size);
+		bx::Error localErr;
+		bx::Error* err = (NULL != _err) ? _err : &localErr;
+		bimg::ImageContainer* imageContainer = bimg::imageParse(entry::getAllocator(), data, size, bimg::TextureFormat::Count, err);
 
 		if (NULL != imageContainer)
 		{
@@ -210,7 +227,7 @@ bgfx::TextureHandle loadTexture(bx::FileReaderI* _reader, const bx::FilePath& _f
 					, mem
 					);
 			}
-			else if (1 < imageContainer->m_depth)
+			else if (bimg::isVolume(*imageContainer) )
 			{
 				handle = bgfx::createTexture3D(
 					  uint16_t(imageContainer->m_width)
@@ -246,9 +263,9 @@ bgfx::TextureHandle loadTexture(bx::FileReaderI* _reader, const bx::FilePath& _f
 	return handle;
 }
 
-bgfx::TextureHandle loadTexture(const bx::FilePath& _filePath, uint64_t _flags, uint8_t _skip, bgfx::TextureInfo* _info, bimg::Orientation::Enum* _orientation)
+bgfx::TextureHandle loadTexture(const bx::FilePath& _filePath, uint64_t _flags, uint8_t _skip, bgfx::TextureInfo* _info, bimg::Orientation::Enum* _orientation, bx::Error* _err)
 {
-	return loadTexture(entry::getFileReader(), _filePath, _flags, _skip, _info, _orientation);
+	return loadTexture(entry::getFileReader(), _filePath, _flags, _skip, _info, _orientation, _err);
 }
 
 bimg::ImageContainer* imageLoad(const bx::FilePath& _filePath, bgfx::TextureFormat::Enum _dstFormat)
@@ -356,6 +373,45 @@ void calcTangents(void* _vertices, uint16_t _numVertices, bgfx::VertexLayout _la
 	delete [] tangents;
 }
 
+uint32_t weldVertices(void* _output, const bgfx::VertexLayout& _layout, const void* _data, uint32_t _num, bool _index32)
+{
+	const uint16_t stride    = _layout.getStride();
+	const uint16_t posOffset = _layout.getOffset(bgfx::Attrib::Position);
+
+	unsigned int* remap = (unsigned int*)malloc(_num * sizeof(unsigned int) );
+	meshopt_generatePositionRemap(remap, (const float*)( (const uint8_t*)_data + posOffset), _num, stride);
+
+	uint32_t numVertices = 0;
+	for (uint32_t ii = 0; ii < _num; ++ii)
+	{
+		if (remap[ii] == ii)
+		{
+			numVertices++;
+		}
+	}
+
+	if (_index32)
+	{
+		uint32_t* output = (uint32_t*)_output;
+		for (uint32_t ii = 0; ii < _num; ++ii)
+		{
+			output[ii] = remap[ii];
+		}
+	}
+	else
+	{
+		uint16_t* output = (uint16_t*)_output;
+		for (uint32_t ii = 0; ii < _num; ++ii)
+		{
+			output[ii] = (uint16_t)remap[ii];
+		}
+	}
+
+	free(remap);
+
+	return numVertices;
+}
+
 Group::Group()
 {
 	reset();
@@ -419,7 +475,7 @@ void Mesh::load(bx::ReaderSeekerI* _reader, bool _ramcopy)
 					bx::memCopy(group.m_vertices, mem->data, mem->size);
 				}
 
-				group.m_vbh = bgfx::createVertexBuffer(mem, m_layout);
+				group.m_vbh = bgfx::createVertexBuffer(mem, m_layout, BGFX_BUFFER_COMPUTE_READ);
 			}
 				break;
 
@@ -453,7 +509,7 @@ void Mesh::load(bx::ReaderSeekerI* _reader, bool _ramcopy)
 					bx::memCopy(group.m_vertices, mem->data, mem->size);
 				}
 
-				group.m_vbh = bgfx::createVertexBuffer(mem, m_layout);
+				group.m_vbh = bgfx::createVertexBuffer(mem, m_layout, BGFX_BUFFER_COMPUTE_READ);
 			}
 				break;
 
@@ -470,7 +526,7 @@ void Mesh::load(bx::ReaderSeekerI* _reader, bool _ramcopy)
 					bx::memCopy(group.m_indices, mem->data, mem->size);
 				}
 
-				group.m_ibh = bgfx::createIndexBuffer(mem);
+				group.m_ibh = bgfx::createIndexBuffer(mem, BGFX_BUFFER_COMPUTE_READ);
 			}
 				break;
 
@@ -747,54 +803,3 @@ bgfx::RendererType::Enum getType(const bx::StringView& _name)
 	return bgfx::RendererType::Count;
 }
 
-Args::Args(int _argc, const char* const* _argv)
-	: m_type(bgfx::RendererType::Count)
-	, m_pciId(BGFX_PCI_ID_NONE)
-{
-	bx::CommandLine cmdLine(_argc, (const char**)_argv);
-
-	if (cmdLine.hasArg("gl") )
-	{
-		m_type = bgfx::RendererType::OpenGL;
-	}
-	else if (cmdLine.hasArg("vk") )
-	{
-		m_type = bgfx::RendererType::Vulkan;
-	}
-	else if (cmdLine.hasArg("noop") )
-	{
-		m_type = bgfx::RendererType::Noop;
-	}
-	else if (cmdLine.hasArg("d3d11") )
-	{
-		m_type = bgfx::RendererType::Direct3D11;
-	}
-	else if (cmdLine.hasArg("d3d12") )
-	{
-		m_type = bgfx::RendererType::Direct3D12;
-	}
-	else if (BX_ENABLED(BX_PLATFORM_OSX) )
-	{
-		if (cmdLine.hasArg("mtl") )
-		{
-			m_type = bgfx::RendererType::Metal;
-		}
-	}
-
-	if (cmdLine.hasArg("amd") )
-	{
-		m_pciId = BGFX_PCI_ID_AMD;
-	}
-	else if (cmdLine.hasArg("nvidia") )
-	{
-		m_pciId = BGFX_PCI_ID_NVIDIA;
-	}
-	else if (cmdLine.hasArg("intel") )
-	{
-		m_pciId = BGFX_PCI_ID_INTEL;
-	}
-	else if (cmdLine.hasArg("sw") )
-	{
-		m_pciId = BGFX_PCI_ID_SOFTWARE_RASTERIZER;
-	}
-}

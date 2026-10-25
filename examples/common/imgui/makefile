@@ -1,5 +1,5 @@
 #
-# Copyright 2011-2025 Branimir Karadzic. All rights reserved.
+# Copyright 2011-2026 Branimir Karadzic. All rights reserved.
 # License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
 #
 
@@ -27,4 +27,3 @@ fonts: droidsans.ttf.h \
 	icons_kenney.ttf.h
 
 rebuild: fonts
-	@make -s --no-print-directory clean all

@@ -36,10 +36,10 @@ namespace
 #define MAX_INSTANCE_COUNT 25
 #define MAX_LIGHTS_COUNT 5
 
-#define VIEWID_RANGE1_PASS0     1
-#define VIEWID_RANGE1_RT_PASS1  2
-#define VIEWID_RANGE15_PASS2    3
-#define VIEWID_RANGE1_PASS3    20
+constexpr bgfx::ViewId kRange1Pass0   =  1;
+constexpr bgfx::ViewId kRange1RtPass1 =  2;
+constexpr bgfx::ViewId kRange15Pass2  =  3;
+constexpr bgfx::ViewId kRange1Pass3   = 20;
 
 struct PosNormalTexcoordVertex
 {
@@ -65,16 +65,17 @@ struct PosNormalTexcoordVertex
 
 bgfx::VertexLayout PosNormalTexcoordVertex::ms_layout;
 
-static const float s_texcoord = 50.0f;
-static PosNormalTexcoordVertex s_hplaneVertices[] =
+constexpr float kTexCoord = 50.0f;
+
+static const PosNormalTexcoordVertex s_hplaneVertices[] =
 {
-	{ -1.0f, 0.0f,  1.0f, encodeNormalRgba8(0.0f, 1.0f, 0.0f), s_texcoord, s_texcoord },
-	{  1.0f, 0.0f,  1.0f, encodeNormalRgba8(0.0f, 1.0f, 0.0f), s_texcoord, 0.0f       },
-	{ -1.0f, 0.0f, -1.0f, encodeNormalRgba8(0.0f, 1.0f, 0.0f), 0.0f,       s_texcoord },
-	{  1.0f, 0.0f, -1.0f, encodeNormalRgba8(0.0f, 1.0f, 0.0f), 0.0f,       0.0f       },
+	{ -1.0f, 0.0f,  1.0f, encodeNormalRgba8(0.0f, 1.0f, 0.0f), kTexCoord, kTexCoord },
+	{  1.0f, 0.0f,  1.0f, encodeNormalRgba8(0.0f, 1.0f, 0.0f), kTexCoord, 0.0f      },
+	{ -1.0f, 0.0f, -1.0f, encodeNormalRgba8(0.0f, 1.0f, 0.0f), 0.0f,      kTexCoord },
+	{  1.0f, 0.0f, -1.0f, encodeNormalRgba8(0.0f, 1.0f, 0.0f), 0.0f,      0.0f      },
 };
 
-static PosNormalTexcoordVertex s_vplaneVertices[] =
+static const PosNormalTexcoordVertex s_vplaneVertices[] =
 {
 	{ -1.0f,  1.0f, 0.0f, encodeNormalRgba8(0.0f, 0.0f, -1.0f), 1.0f, 1.0f },
 	{  1.0f,  1.0f, 0.0f, encodeNormalRgba8(0.0f, 0.0f, -1.0f), 1.0f, 0.0f },
@@ -88,19 +89,11 @@ static const uint16_t s_planeIndices[] =
 	1, 3, 2,
 };
 
-static bool s_oglNdc = false;
-
-static uint32_t s_viewMask = 0;
-
-static bgfx::UniformHandle s_texColor;
-static bgfx::UniformHandle s_texStencil;
-static bgfx::FrameBufferHandle s_stencilFb;
-
 void setViewClearMask(uint32_t _viewMask, uint8_t _flags, uint32_t _rgba, float _depth, uint8_t _stencil)
 {
 	for (uint32_t view = 0, viewMask = _viewMask; 0 != viewMask; viewMask >>= 1, view += 1 )
 	{
-		const uint32_t ntz = bx::uint32_cnttz(viewMask);
+		const uint32_t ntz = bx::countTrailingZeros<uint32_t>(viewMask);
 		viewMask >>= ntz;
 		view += ntz;
 
@@ -112,7 +105,7 @@ void setViewTransformMask(uint32_t _viewMask, const void* _view, const void* _pr
 {
 	for (uint32_t view = 0, viewMask = _viewMask; 0 != viewMask; viewMask >>= 1, view += 1 )
 	{
-        const uint32_t ntz = bx::uint32_cnttz(viewMask);
+        const uint32_t ntz = bx::countTrailingZeros<uint32_t>(viewMask);
 		viewMask >>= ntz;
 		view += ntz;
 
@@ -124,7 +117,7 @@ void setViewRectMask(uint32_t _viewMask, uint16_t _x, uint16_t _y, uint16_t _wid
 {
 	for (uint32_t view = 0, viewMask = _viewMask; 0 != viewMask; viewMask >>= 1, view += 1 )
 	{
-        const uint32_t ntz = bx::uint32_cnttz(viewMask);
+        const uint32_t ntz = bx::countTrailingZeros<uint32_t>(viewMask);
 		viewMask >>= ntz;
 		view += ntz;
 
@@ -183,6 +176,11 @@ struct Uniforms
 		m_params.m_ambientPass   = 1.0f;
 		m_params.m_lightingPass  = 1.0f;
 		m_params.m_texelHalf     = 0.0f;
+
+		m_svparams.m_useStencilTex = 0.0f;
+		m_svparams.m_dfail         = 0.0f;
+		m_svparams.m_unused10      = 0.0f;
+		m_svparams.m_unused11      = 0.0f;
 
 		m_ambient[0] = 0.05f;
 		m_ambient[1] = 0.05f;
@@ -323,8 +321,6 @@ struct Uniforms
 	bgfx::UniformHandle u_lightRgbInnerR;
 	bgfx::UniformHandle u_virtualLightPos_extrusionDist;
 };
-
-static Uniforms s_uniforms;
 
 struct RenderState
 {
@@ -543,6 +539,8 @@ struct ClearValues
 	uint8_t  m_clearStencil;
 };
 
+static uint32_t s_viewMask = 0;
+
 void submit(bgfx::ViewId _id, bgfx::ProgramHandle _handle, int32_t _depth = 0)
 {
 	bgfx::submit(_id, _handle, _depth);
@@ -684,67 +682,6 @@ struct HalfEdges
 	HalfEdge* m_endPtr;
 };
 
-struct WeldedVertex
-{
-	uint16_t m_v;
-	bool m_welded;
-};
-
-inline float sqLength(const float _a[3], const float _b[3])
-{
-	const float xx = _a[0] - _b[0];
-	const float yy = _a[1] - _b[1];
-	const float zz = _a[2] - _b[2];
-	return xx*xx + yy*yy + zz*zz;
-}
-
-uint16_t weldVertices(WeldedVertex* _output, const bgfx::VertexLayout& _layout, const void* _data, uint16_t _num, float _epsilon)
-{
-	const uint32_t hashSize = bx::uint32_nextpow2(_num);
-	const uint32_t hashMask = hashSize-1;
-	const float epsilonSq = _epsilon*_epsilon;
-
-	uint16_t numVertices = 0;
-
-	const uint32_t size = sizeof(uint16_t)*(hashSize + _num);
-	uint16_t* hashTable = (uint16_t*)BX_STACK_ALLOC(size);
-	bx::memSet(hashTable, 0xff, size);
-
-	uint16_t* next = hashTable + hashSize;
-
-	for (uint16_t ii = 0; ii < _num; ++ii)
-	{
-		float pos[4];
-		vertexUnpack(pos, bgfx::Attrib::Position, _layout, _data, ii);
-		uint32_t hashValue = bx::hash<bx::HashMurmur2A>(pos, 3*sizeof(float) ) & hashMask;
-
-		uint16_t offset = hashTable[hashValue];
-		for (; UINT16_MAX != offset; offset = next[offset])
-		{
-			float test[4];
-			vertexUnpack(test, bgfx::Attrib::Position, _layout, _data, _output[offset].m_v);
-
-			if (sqLength(test, pos) < epsilonSq)
-			{
-				_output[ii].m_v = _output[offset].m_v;
-				_output[ii].m_welded = true;
-				break;
-			}
-		}
-
-		if (UINT16_MAX == offset)
-		{
-			_output[ii].m_v = ii;
-			_output[ii].m_welded = false;
-			next[ii] = hashTable[hashValue];
-			hashTable[hashValue] = ii;
-			numVertices++;
-		}
-	}
-
-	return numVertices;
-}
-
 struct Group
 {
 	Group()
@@ -806,20 +743,12 @@ struct Group
 		EdgeMap edgeMap;
 
 		//Get unique indices.
-		WeldedVertex* uniqueVertices = (WeldedVertex*)malloc(m_numVertices*sizeof(WeldedVertex) );
-		::weldVertices(uniqueVertices, _layout, m_vertices, m_numVertices, 0.0001f);
+		uint16_t* uniqueVertices = (uint16_t*)malloc(m_numVertices * sizeof(uint16_t) );
+		weldVertices(uniqueVertices, _layout, m_vertices, m_numVertices, false);
 		uint16_t* uniqueIndices = (uint16_t*)malloc(m_numIndices*sizeof(uint16_t) );
 		for (uint32_t ii = 0; ii < m_numIndices; ++ii)
 		{
-			uint16_t index = m_indices[ii];
-			if (uniqueVertices[index].m_welded)
-			{
-				uniqueIndices[ii] = uniqueVertices[index].m_v;
-			}
-			else
-			{
-				uniqueIndices[ii] = index;
-			}
+			uniqueIndices[ii] = uniqueVertices[m_indices[ii] ];
 		}
 		free(uniqueVertices);
 
@@ -1020,6 +949,11 @@ struct Mesh
 	GroupArray m_groups;
 };
 
+static bgfx::UniformHandle s_texColor;
+static bgfx::UniformHandle s_texStencil;
+static bgfx::FrameBufferHandle s_stencilFb;
+static Uniforms s_uniforms;
+
 struct Model
 {
 	Model()
@@ -1156,7 +1090,6 @@ struct ShadowVolumeAllocator
 	uint8_t* m_ptr;
 	bool m_firstPage;
 };
-static ShadowVolumeAllocator s_svAllocator;
 
 struct ShadowVolumeImpl
 {
@@ -1178,10 +1111,10 @@ struct ShadowVolumeAlgorithm
 
 struct ShadowVolume
 {
-	bgfx::VertexBufferHandle m_vbSides;
-	bgfx::IndexBufferHandle m_ibSides;
-	bgfx::IndexBufferHandle m_ibFrontCap;
-	bgfx::IndexBufferHandle m_ibBackCap;
+	bgfx::TransientVertexBuffer m_vbSides;
+	bgfx::TransientIndexBuffer m_ibSides;
+	bgfx::TransientIndexBuffer m_ibFrontCap;
+	bgfx::TransientIndexBuffer m_ibBackCap;
 
 	uint32_t m_numVertices;
 	uint32_t m_numIndices;
@@ -1190,6 +1123,7 @@ struct ShadowVolume
 	const float* m_lightPos;
 
 	bool m_cap;
+	bool m_valid;
 };
 
 void shadowVolumeLightTransform(
@@ -1237,7 +1171,8 @@ void shadowVolumeLightTransform(
 }
 
 void shadowVolumeCreate(
-	  ShadowVolume& _shadowVolume
+	  ShadowVolume& _outShadowVolume
+	, ShadowVolumeAllocator& _svAllocator
 	, Group& _group
 	, uint16_t _stride
 	, const float* _mtx
@@ -1274,15 +1209,15 @@ void shadowVolumeCreate(
 
 	bool cap = (ShadowVolumeImpl::DepthFail == _impl);
 
-	VertexData* verticesSide    = (VertexData*) s_svAllocator.alloc(20000 * sizeof(VertexData) );
-	uint16_t*   indicesSide     = (uint16_t*)   s_svAllocator.alloc(20000 * 3*sizeof(uint16_t) );
+	VertexData* verticesSide    = (VertexData*)_svAllocator.alloc(20000 * sizeof(VertexData) );
+	uint16_t*   indicesSide     = (uint16_t  *)_svAllocator.alloc(20000 * 3*sizeof(uint16_t) );
 	uint16_t*   indicesFrontCap = 0;
 	uint16_t*   indicesBackCap  = 0;
 
 	if (cap)
 	{
-		indicesFrontCap = (uint16_t*)s_svAllocator.alloc(80000 * 3*sizeof(uint16_t) );
-		indicesBackCap  = (uint16_t*)s_svAllocator.alloc(80000 * 3*sizeof(uint16_t) );
+		indicesFrontCap = (uint16_t*)_svAllocator.alloc(80000 * 3*sizeof(uint16_t) );
+		indicesBackCap  = (uint16_t*)_svAllocator.alloc(80000 * 3*sizeof(uint16_t) );
 	}
 
 	uint32_t vsideI    = 0;
@@ -1398,9 +1333,9 @@ void shadowVolumeCreate(
 
 			using namespace bx;
 
-			const simd128_t lx = simd_splat(_light[0]);
-			const simd128_t ly = simd_splat(_light[1]);
-			const simd128_t lz = simd_splat(_light[2]);
+			const simd128_t lx = simd_splat<simd128_t>(_light[0]);
+			const simd128_t ly = simd_splat<simd128_t>(_light[1]);
+			const simd128_t lz = simd_splat<simd128_t>(_light[2]);
 
 			for (; ii < numEdgesRounded; ii+=2)
 			{
@@ -1410,43 +1345,43 @@ void shadowVolumeCreate(
 				const Plane* edgePlane1 = &edgePlanes[ii*2 + 2];
 
 				const simd128_t reverse =
-					simd_ild(edge0.m_faceReverseOrder[0]
-							, edge1.m_faceReverseOrder[0]
-							, edge0.m_faceReverseOrder[1]
-							, edge1.m_faceReverseOrder[1]
+					simd128_ld(uint32_t(edge0.m_faceReverseOrder[0])
+							, uint32_t(edge1.m_faceReverseOrder[0])
+							, uint32_t(edge0.m_faceReverseOrder[1])
+							, uint32_t(edge1.m_faceReverseOrder[1])
 							);
 
-				const simd128_t p00 = simd_ld(edgePlane0[0].m_plane);
-				const simd128_t p10 = simd_ld(edgePlane1[0].m_plane);
-				const simd128_t p01 = simd_ld(edgePlane0[1].m_plane);
-				const simd128_t p11 = simd_ld(edgePlane1[1].m_plane);
+				const simd128_t p00 = simd_ld<simd128_t>(edgePlane0[0].m_plane);
+				const simd128_t p10 = simd_ld<simd128_t>(edgePlane1[0].m_plane);
+				const simd128_t p01 = simd_ld<simd128_t>(edgePlane0[1].m_plane);
+				const simd128_t p11 = simd_ld<simd128_t>(edgePlane1[1].m_plane);
 
-				const simd128_t xxyy0 = simd_shuf_xAyB(p00, p01);
-				const simd128_t zzww0 = simd_shuf_zCwD(p00, p01);
-				const simd128_t xxyy1 = simd_shuf_xAyB(p10, p11);
-				const simd128_t zzww1 = simd_shuf_zCwD(p10, p11);
+				const simd128_t xxyy0 = simd128_x32_shuf_xAyB(p00, p01);
+				const simd128_t zzww0 = simd128_x32_shuf_zCwD(p00, p01);
+				const simd128_t xxyy1 = simd128_x32_shuf_xAyB(p10, p11);
+				const simd128_t zzww1 = simd128_x32_shuf_zCwD(p10, p11);
 
-				const simd128_t vX = simd_shuf_xAyB(xxyy0, xxyy1);
-				const simd128_t vY = simd_shuf_zCwD(xxyy0, xxyy1);
-				const simd128_t vZ = simd_shuf_xAyB(zzww0, zzww1);
-				const simd128_t vW = simd_shuf_zCwD(zzww0, zzww1);
+				const simd128_t vX = simd128_x32_shuf_xAyB(xxyy0, xxyy1);
+				const simd128_t vY = simd128_x32_shuf_zCwD(xxyy0, xxyy1);
+				const simd128_t vZ = simd128_x32_shuf_xAyB(zzww0, zzww1);
+				const simd128_t vW = simd128_x32_shuf_zCwD(zzww0, zzww1);
 
-				const simd128_t r0 = simd_mul(vX, lx);
-				const simd128_t r1 = simd_mul(vY, ly);
-				const simd128_t r2 = simd_mul(vZ, lz);
+				const simd128_t r0 = simd_f32_mul(vX, lx);
+				const simd128_t r1 = simd_f32_mul(vY, ly);
+				const simd128_t r2 = simd_f32_mul(vZ, lz);
 
-				const simd128_t dot = simd_add(r0, simd_add(r1, r2) );
-				const simd128_t f = simd_add(dot, vW);
+				const simd128_t dot = simd_f32_add(r0, simd_f32_add(r1, r2) );
+				const simd128_t f = simd_f32_add(dot, vW);
 
-				const simd128_t zero = simd_zero();
-				const simd128_t mask = simd_cmpgt(f, zero);
-				const simd128_t onef = simd_splat(1.0f);
+				const simd128_t zero = simd_zero<simd128_t>();
+				const simd128_t mask = simd_f32_cmpgt(f, zero);
+				const simd128_t onef = simd_splat<simd128_t>(1.0f);
 				const simd128_t tmp0 = simd_and(mask, onef);
-				const simd128_t tmp1 = simd_ftoi(tmp0);
+				const simd128_t tmp1 = simd_f32_ftoi_trunc(tmp0);
 				const simd128_t tmp2 = simd_xor(tmp1, reverse);
-				const simd128_t tmp3 = simd_sll(tmp2, 1);
-				const simd128_t onei = simd_isplat(1);
-				const simd128_t tmp4 = simd_isub(tmp3, onei);
+				const simd128_t tmp3 = simd_x32_sll(tmp2, 1);
+				const simd128_t onei = simd_splat<simd128_t>(uint32_t(1) );
+				const simd128_t tmp4 = simd_i32_sub(tmp3, onei);
 
 				BX_ALIGN_DECL_16(int32_t res[4]);
 				simd_st(&res, tmp4);
@@ -1554,46 +1489,44 @@ void shadowVolumeCreate(
 		.end();
 
 	//fill the structure
-	_shadowVolume.m_numVertices = vsideI;
-	_shadowVolume.m_numIndices  = sideI + frontCapI + backCapI;
-	_shadowVolume.m_mtx         = _mtx;
-	_shadowVolume.m_lightPos    = _light;
-	_shadowVolume.m_cap         = cap;
-
-	const bgfx::Memory* mem;
+	_outShadowVolume.m_numVertices = vsideI;
+	_outShadowVolume.m_numIndices  = sideI + frontCapI + backCapI;
+	_outShadowVolume.m_mtx         = _mtx;
+	_outShadowVolume.m_lightPos    = _light;
+	_outShadowVolume.m_cap         = cap;
 
 	//sides
 	uint32_t vsize = vsideI * 5*sizeof(float);
 	uint32_t isize = sideI * sizeof(uint16_t);
 
-	mem = bgfx::makeRef(verticesSide, vsize);
-	_shadowVolume.m_vbSides = bgfx::createVertexBuffer(mem, layout);
+	const uint32_t numIndices = sideI + (cap ? frontCapI + backCapI : 0);
+	_outShadowVolume.m_valid = true
+		&& vsideI     == bgfx::getAvailTransientVertexBuffer(vsideI, layout)
+		&& numIndices == bgfx::getAvailTransientIndexBuffer(numIndices)
+		;
 
-	mem = bgfx::makeRef(indicesSide, isize);
-	_shadowVolume.m_ibSides = bgfx::createIndexBuffer(mem);
+	if (!_outShadowVolume.m_valid)
+	{
+		return;
+	}
 
-	// bgfx::destroy*Buffer doesn't actually destroy buffers now.
-	// Instead, these bgfx::destroy*Buffer commands get queued to be executed after the end of the next frame.
-	bgfx::destroy(_shadowVolume.m_vbSides);
-	bgfx::destroy(_shadowVolume.m_ibSides);
+	bgfx::allocTransientVertexBuffer(&_outShadowVolume.m_vbSides, vsideI, layout);
+	bx::memCopy(_outShadowVolume.m_vbSides.data, verticesSide, vsize);
+
+	bgfx::allocTransientIndexBuffer(&_outShadowVolume.m_ibSides, sideI);
+	bx::memCopy(_outShadowVolume.m_ibSides.data, indicesSide, isize);
 
 	if (cap)
 	{
 		//front cap
 		isize = frontCapI * sizeof(uint16_t);
-		mem = bgfx::makeRef(indicesFrontCap, isize);
-		_shadowVolume.m_ibFrontCap = bgfx::createIndexBuffer(mem);
-
-		//gets destroyed after the end of the next frame
-		bgfx::destroy(_shadowVolume.m_ibFrontCap);
+		bgfx::allocTransientIndexBuffer(&_outShadowVolume.m_ibFrontCap, frontCapI);
+		bx::memCopy(_outShadowVolume.m_ibFrontCap.data, indicesFrontCap, isize);
 
 		//back cap
 		isize = backCapI * sizeof(uint16_t);
-		mem = bgfx::makeRef(indicesBackCap, isize);
-		_shadowVolume.m_ibBackCap = bgfx::createIndexBuffer(mem);
-
-		//gets destroyed after the end of the next frame
-		bgfx::destroy(_shadowVolume.m_ibBackCap);
+		bgfx::allocTransientIndexBuffer(&_outShadowVolume.m_ibBackCap, backCapI);
+		bx::memCopy(_outShadowVolume.m_ibBackCap.data, indicesBackCap, isize);
 	}
 }
 
@@ -1783,19 +1716,16 @@ public:
 		bgfx::Init init;
 		init.type     = args.m_type;
 		init.vendorId = args.m_pciId;
-		init.platformData.nwh  = entry::getNativeWindowHandle(entry::kDefaultWindowHandle);
-		init.platformData.ndt  = entry::getNativeDisplayHandle();
+		init.swapChain.nwh     = entry::getNativeWindowHandle(entry::kDefaultWindowHandle);
+		init.swapChain.ndt     = entry::getNativeDisplayHandle();
 		init.platformData.type = entry::getNativeWindowHandleType();
-		init.resolution.width  = m_viewState.m_width;
-		init.resolution.height = m_viewState.m_height;
-		init.resolution.reset  = m_reset;
+		init.swapChain.width  = m_viewState.m_width;
+		init.swapChain.height = m_viewState.m_height;
+		init.reset  = m_reset;
 		bgfx::init(init);
 
 		// Enable debug text.
 		bgfx::setDebug(m_debug);
-
-		const bgfx::Caps* caps = bgfx::getCaps();
-		s_oglNdc    = caps->homogeneousDepth;
 
 		// Imgui
 		imguiCreate();
@@ -1910,8 +1840,7 @@ public:
 			m_lightRgbInnerR[ii][3] = rgbInnerR[index][3];
 		}
 
-		m_profTime = 0;
-		m_timeOffset = bx::getHPCounter();
+		m_frameTime.reset();
 
 		m_numShadowVolumeVertices = 0;
 		m_numShadowVolumeIndices  = 0;
@@ -1994,6 +1923,10 @@ public:
 	{
 		if (!entry::processEvents(m_viewState.m_width, m_viewState.m_height, m_debug, m_reset, &m_mouseState) )
 		{
+			m_frameTime.frame();
+			const float time      = bx::toSeconds<float>(m_frameTime.getDurationTime() );
+			const float deltaTime = bx::toSeconds<float>(m_frameTime.getDeltaTime() ) ;
+			s_uniforms.m_time = time;
 			s_uniforms.submitConstUniforms();
 
 			// Set projection matrices.
@@ -2019,24 +1952,15 @@ public:
 				s_stencilFb = bgfx::createFrameBuffer(BX_COUNTOF(fbtextures), fbtextures, true);
 			}
 
-			// Time.
-			int64_t now = bx::getHPCounter();
-			static int64_t last = now;
-			const int64_t frameTime = now - last;
-			last = now;
-			const double freq = double(bx::getHPFrequency() );
-			const double toMs = 1000.0/freq;
-			float time = (float)( (now - m_timeOffset)/double(bx::getHPFrequency() ) );
-			const float deltaTime = float(frameTime/freq);
-			s_uniforms.m_time = time;
-
 			// Update camera.
 			cameraUpdate(deltaTime, m_mouseState, ImGui::MouseOverArea() );
 
 			// Set view and projection matrix for view 0.
 			{
 				cameraGetViewMtx(m_viewState.m_view);
-				bx::mtxProj(m_viewState.m_proj, fov, aspect, nearPlane, farPlane, s_oglNdc);
+
+				const bgfx::Caps* caps = bgfx::getCaps();
+				bx::mtxProj(m_viewState.m_proj, fov, aspect, nearPlane, farPlane, caps->homogeneousDepth);
 			}
 
 			imguiBeginFrame(
@@ -2149,7 +2073,7 @@ public:
 				ImGui::SliderInt("Instance count", &m_instanceCount, 1, MAX_INSTANCE_COUNT);
 			}
 
-			ImGui::Text("CPU Time: %7.1f [ms]", double(m_profTime)*toMs);
+			ImGui::Text("CPU Time: %7.1f [ms]", bx::toMilliseconds<double>(m_profTime) );
 			ImGui::Text("Volume Vertices: %5.uk", m_numShadowVolumeVertices/1000);
 			ImGui::Text("Volume Indices: %6.uk", m_numShadowVolumeIndices/1000);
 			m_numShadowVolumeVertices = 0;
@@ -2486,42 +2410,42 @@ public:
 			// Draw shadow casters.
 			for (uint8_t ii = 0; ii < shadowCastersCount[m_currentScene]; ++ii)
 			{
-				shadowCasters[m_currentScene][ii].submit(VIEWID_RANGE1_PASS0, drawAmbient);
+				shadowCasters[m_currentScene][ii].submit(kRange1Pass0, drawAmbient);
 			}
 
 			// Draw shadow receivers.
 			for (uint8_t ii = 0; ii < shadowReceiversCount[m_currentScene]; ++ii)
 			{
-				shadowReceivers[m_currentScene][ii].submit(VIEWID_RANGE1_PASS0, drawAmbient);
+				shadowReceivers[m_currentScene][ii].submit(kRange1Pass0, drawAmbient);
 			}
 
 			// Using stencil texture requires rendering to separate render target. first pass is building depth buffer.
 			if (m_useStencilTexture)
 			{
-				bgfx::setViewClear(VIEWID_RANGE1_RT_PASS1, BGFX_CLEAR_DEPTH, 0x00000000, 1.0f, 0);
-				bgfx::setViewFrameBuffer(VIEWID_RANGE1_RT_PASS1, s_stencilFb);
+				bgfx::setViewClear(kRange1RtPass1, BGFX_CLEAR_DEPTH, 0x00000000, 1.0f, 0);
+				bgfx::setViewFrameBuffer(kRange1RtPass1, s_stencilFb);
 
 				const RenderState& renderState = s_renderStates[RenderState::ShadowVolume_UsingStencilTexture_BuildDepth];
 
 				for (uint8_t ii = 0; ii < shadowCastersCount[m_currentScene]; ++ii)
 				{
-					shadowCasters[m_currentScene][ii].submit(VIEWID_RANGE1_RT_PASS1, renderState);
+					shadowCasters[m_currentScene][ii].submit(kRange1RtPass1, renderState);
 				}
 
 				for (uint8_t ii = 0; ii < shadowReceiversCount[m_currentScene]; ++ii)
 				{
-					shadowReceivers[m_currentScene][ii].submit(VIEWID_RANGE1_RT_PASS1, renderState);
+					shadowReceivers[m_currentScene][ii].submit(kRange1RtPass1, renderState);
 				}
 			}
 
-			m_profTime = bx::getHPCounter();
+			m_profTime = bx::getNow();
 
 			/**
 			 * For each light:
 			 * 1. Compute and draw shadow volume to stencil buffer
 			 * 2. Draw diffuse with stencil test
 			 */
-			for (uint8_t ii = 0, viewId = VIEWID_RANGE15_PASS2; ii < m_numLights; ++ii, ++viewId)
+			for (uint8_t ii = 0, viewId = kRange15Pass2; ii < m_numLights; ++ii, ++viewId)
 			{
 				const float* lightPos = lightPosRadius[ii];
 
@@ -2614,7 +2538,9 @@ public:
 
 						// Create shadow volume.
 						ShadowVolume shadowVolume;
-						shadowVolumeCreate(shadowVolume
+						shadowVolumeCreate(
+							  shadowVolume
+							, m_svAllocator
 							, group
 							, stride
 							, shadowVolumeMtx
@@ -2626,6 +2552,12 @@ public:
 
 						m_numShadowVolumeVertices += shadowVolume.m_numVertices;
 						m_numShadowVolumeIndices += shadowVolume.m_numIndices;
+
+						if (!shadowVolume.m_valid)
+						{
+							// Geometry didn't fit the per-frame transient budget; skip it.
+							continue;
+						}
 
 						ShadowVolumeProgramType::Enum programIndex = ShadowVolumeProgramType::Blank;
 						RenderState::Enum renderStateIndex;
@@ -2652,8 +2584,8 @@ public:
 
 						s_uniforms.submitPerDrawUniforms();
 						bgfx::setTransform(shadowVolumeMtx);
-						bgfx::setVertexBuffer(0, shadowVolume.m_vbSides);
-						bgfx::setIndexBuffer(shadowVolume.m_ibSides);
+						bgfx::setVertexBuffer(0, &shadowVolume.m_vbSides);
+						bgfx::setIndexBuffer(&shadowVolume.m_ibSides);
 						setRenderState(renderStateCraftStencil);
 						::submit(viewId, m_svProgs[programIndex][ShadowVolumePart::Side]);
 
@@ -2662,14 +2594,14 @@ public:
 							s_uniforms.submitPerDrawUniforms();
 							bgfx::setTransform(shadowVolumeMtx);
 							bgfx::setVertexBuffer(0, group.m_vbh);
-							bgfx::setIndexBuffer(shadowVolume.m_ibFrontCap);
+							bgfx::setIndexBuffer(&shadowVolume.m_ibFrontCap);
 							setRenderState(renderStateCraftStencil);
 							::submit(viewId, m_svProgs[programIndex][ShadowVolumePart::Front]);
 
 							s_uniforms.submitPerDrawUniforms();
 							bgfx::setTransform(shadowVolumeMtx);
 							bgfx::setVertexBuffer(0, group.m_vbh);
-							bgfx::setIndexBuffer(shadowVolume.m_ibBackCap);
+							bgfx::setIndexBuffer(&shadowVolume.m_ibBackCap);
 							::setRenderState(renderStateCraftStencil);
 							::submit(viewId, m_svProgs[programIndex][ShadowVolumePart::Back]);
 						}
@@ -2680,26 +2612,26 @@ public:
 
 							s_uniforms.submitPerDrawUniforms();
 							bgfx::setTransform(shadowVolumeMtx);
-							bgfx::setVertexBuffer(0, shadowVolume.m_vbSides);
-							bgfx::setIndexBuffer(shadowVolume.m_ibSides);
+							bgfx::setVertexBuffer(0, &shadowVolume.m_vbSides);
+							bgfx::setIndexBuffer(&shadowVolume.m_ibSides);
 							::setRenderState(renderState);
-							::submit(VIEWID_RANGE1_PASS3, m_svProgs[ShadowVolumeProgramType::Color][ShadowVolumePart::Side]);
+							::submit(kRange1Pass3, m_svProgs[ShadowVolumeProgramType::Color][ShadowVolumePart::Side]);
 
 							if (shadowVolume.m_cap)
 							{
 								s_uniforms.submitPerDrawUniforms();
 								bgfx::setTransform(shadowVolumeMtx);
 								bgfx::setVertexBuffer(0, group.m_vbh);
-								bgfx::setIndexBuffer(shadowVolume.m_ibFrontCap);
+								bgfx::setIndexBuffer(&shadowVolume.m_ibFrontCap);
 								::setRenderState(renderState);
-								::submit(VIEWID_RANGE1_PASS3, m_svProgs[ShadowVolumeProgramType::Color][ShadowVolumePart::Front]);
+								::submit(kRange1Pass3, m_svProgs[ShadowVolumeProgramType::Color][ShadowVolumePart::Front]);
 
 								s_uniforms.submitPerDrawUniforms();
 								bgfx::setTransform(shadowVolumeMtx);
 								bgfx::setVertexBuffer(0, group.m_vbh);
-								bgfx::setIndexBuffer(shadowVolume.m_ibBackCap);
+								bgfx::setIndexBuffer(&shadowVolume.m_ibBackCap);
 								::setRenderState(renderState);
-								::submit(VIEWID_RANGE1_PASS3, m_svProgs[ShadowVolumeProgramType::Color][ShadowVolumePart::Back]);
+								::submit(kRange1Pass3, m_svProgs[ShadowVolumeProgramType::Color][ShadowVolumePart::Back]);
 							}
 						}
 					}
@@ -2730,7 +2662,7 @@ public:
 				}
 			}
 
-			m_profTime = bx::getHPCounter() - m_profTime;
+			m_profTime = bx::getNow() - m_profTime;
 
 			// Lights.
 			const float lightScale[3] = { 1.5f, 1.5f, 1.5f };
@@ -2741,7 +2673,7 @@ public:
 				float lightMtx[16];
 				mtxBillboard(lightMtx, m_viewState.m_view, lightPosRadius[ii], lightScale);
 
-				m_vplaneModel.submit(VIEWID_RANGE1_PASS3, lightMtx, s_renderStates[RenderState::Custom_BlendLightTexture]);
+				m_vplaneModel.submit(kRange1Pass3, lightMtx, s_renderStates[RenderState::Custom_BlendLightTexture]);
 			}
 
 			// Setup view rect and transform for all used views.
@@ -2754,7 +2686,7 @@ public:
 			bgfx::frame();
 
 			// Swap memory pages.
-			s_svAllocator.swap();
+			m_svAllocator.swap();
 
 			// Reset clear values.
 			setViewClearMask(UINT32_MAX
@@ -2812,8 +2744,8 @@ public:
 
 	float m_lightRgbInnerR[MAX_LIGHTS_COUNT][4];
 
-	int64_t m_profTime;
-	int64_t m_timeOffset;
+	bx::Ticks m_profTime = bx::InitZero;
+	FrameTime m_frameTime;
 
 	uint32_t m_numShadowVolumeVertices;
 	uint32_t m_numShadowVolumeIndices;
@@ -2831,6 +2763,7 @@ public:
 	bool m_drawShadowVolumes;
 	ShadowVolumeImpl::Enum      m_shadowVolumeImpl;
 	ShadowVolumeAlgorithm::Enum m_shadowVolumeAlgorithm;
+	ShadowVolumeAllocator       m_svAllocator;
 
 	LightPattern m_lightPattern;
 	MeshChoice   m_currentMesh;

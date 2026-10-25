@@ -1,4 +1,4 @@
-// Copyright 2011-2025 Branimir Karadzic. All rights reserved.
+// Copyright 2011-2026 Branimir Karadzic. All rights reserved.
 // License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
 
 
@@ -176,9 +176,12 @@ pub const StencilFlags_FuncRefShift: StencilFlags           = 0;
 pub const StencilFlags_FuncRefMask: StencilFlags            = 0x000000ff;
 pub const StencilFlags_FuncRmaskShift: StencilFlags         = 8;
 pub const StencilFlags_FuncRmaskMask: StencilFlags          = 0x0000ff00;
-pub const StencilFlags_None: StencilFlags                   = 0x00000000;
+
+/// No stencil test.
+pub const StencilFlags_None: StencilFlags                   = 0x0000ff00;
+
+/// Stencil front or back mask.
 pub const StencilFlags_Mask: StencilFlags                   = 0xffffffff;
-pub const StencilFlags_Default: StencilFlags                = 0x00000000;
 
 /// Enable stencil test, less.
 pub const StencilFlags_TestLess: StencilFlags               = 0x00010000;
@@ -375,45 +378,6 @@ pub const DebugFlags_Text: DebugFlags                   = 0x00000008;
 pub const DebugFlags_Profiler: DebugFlags               = 0x00000010;
 
 pub const BufferFlags = u16;
-/// 1 8-bit value
-pub const BufferFlags_ComputeFormat8x1: BufferFlags       = 0x0001;
-
-/// 2 8-bit values
-pub const BufferFlags_ComputeFormat8x2: BufferFlags       = 0x0002;
-
-/// 4 8-bit values
-pub const BufferFlags_ComputeFormat8x4: BufferFlags       = 0x0003;
-
-/// 1 16-bit value
-pub const BufferFlags_ComputeFormat16x1: BufferFlags      = 0x0004;
-
-/// 2 16-bit values
-pub const BufferFlags_ComputeFormat16x2: BufferFlags      = 0x0005;
-
-/// 4 16-bit values
-pub const BufferFlags_ComputeFormat16x4: BufferFlags      = 0x0006;
-
-/// 1 32-bit value
-pub const BufferFlags_ComputeFormat32x1: BufferFlags      = 0x0007;
-
-/// 2 32-bit values
-pub const BufferFlags_ComputeFormat32x2: BufferFlags      = 0x0008;
-
-/// 4 32-bit values
-pub const BufferFlags_ComputeFormat32x4: BufferFlags      = 0x0009;
-pub const BufferFlags_ComputeFormatShift: BufferFlags     = 0;
-pub const BufferFlags_ComputeFormatMask: BufferFlags      = 0x000f;
-
-/// Type `int`.
-pub const BufferFlags_ComputeTypeInt: BufferFlags         = 0x0010;
-
-/// Type `uint`.
-pub const BufferFlags_ComputeTypeUint: BufferFlags        = 0x0020;
-
-/// Type `float`.
-pub const BufferFlags_ComputeTypeFloat: BufferFlags       = 0x0030;
-pub const BufferFlags_ComputeTypeShift: BufferFlags       = 4;
-pub const BufferFlags_ComputeTypeMask: BufferFlags        = 0x0030;
 pub const BufferFlags_None: BufferFlags                   = 0x0000;
 
 /// Buffer will be read by shader.
@@ -453,6 +417,19 @@ pub const TextureFlags_BlitDst: TextureFlags                = 0x0000400000000000
 /// Texture will be used for read back from GPU.
 pub const TextureFlags_ReadBack: TextureFlags               = 0x0000800000000000;
 
+/// Texture is shared with other device or other process.
+pub const TextureFlags_ExternalShared: TextureFlags         = 0x0001000000000000;
+
+/// Texture may be sampled and rendered with either sRGB-ness,
+/// not just the one implied by its format. Every bind and
+/// attachment must then state the encoding it wants (see
+/// `BGFX_SAMPLER_SRGB`, `BGFX_ATTACHMENT_SRGB`). Costs nothing
+/// until used, but may disable texture compression on some
+/// hardware.
+pub const TextureFlags_SrgbMutable: TextureFlags            = 0x0040000000000000;
+pub const TextureFlags_ReservedShift: TextureFlags          = 60;
+pub const TextureFlags_ReservedMask: TextureFlags           = 0xf000000000000000;
+
 /// Render target MSAAx2 mode.
 pub const TextureFlags_RtMsaaX2: TextureFlags               = 0x0000002000000000;
 
@@ -471,6 +448,8 @@ pub const TextureFlags_RtMsaaMask: TextureFlags             = 0x0000007000000000
 pub const TextureFlags_RtWriteOnly: TextureFlags            = 0x0000008000000000;
 pub const TextureFlags_RtShift: TextureFlags                = 36;
 pub const TextureFlags_RtMask: TextureFlags                 = 0x000000f000000000;
+pub const TextureFlags_MipCountShift: TextureFlags          = 49;
+pub const TextureFlags_MipCountMask: TextureFlags           = 0x003e000000000000;
 
 pub const SamplerFlags = u32;
 /// Wrap U mode: Mirror
@@ -560,6 +539,12 @@ pub const SamplerFlags_None: SamplerFlags                   = 0x00000000;
 
 /// Sample stencil instead of depth.
 pub const SamplerFlags_SampleStencil: SamplerFlags          = 0x00100000;
+
+/// Sample with sRGB conversion; absence of this flag samples
+/// without it. Only affects textures created
+/// `BGFX_TEXTURE_SRGB_MUTABLE`, which must state the encoding
+/// explicitly on every bind; ignored for any other texture.
+pub const SamplerFlags_Srgb: SamplerFlags                   = 0x00200000;
 pub const SamplerFlags_Point: SamplerFlags                  = 0x00000540;
 pub const SamplerFlags_UvwMirror: SamplerFlags              = 0x00000015;
 pub const SamplerFlags_UvwClamp: SamplerFlags               = 0x0000002a;
@@ -612,113 +597,131 @@ pub const ResetFlags_Hdr10: ResetFlags                  = 0x00010000;
 /// Enable HiDPI rendering.
 pub const ResetFlags_Hidpi: ResetFlags                  = 0x00020000;
 
-/// Enable depth clamp.
-pub const ResetFlags_DepthClamp: ResetFlags             = 0x00040000;
-
 /// Suspend rendering.
 pub const ResetFlags_Suspend: ResetFlags                = 0x00080000;
 
 /// Transparent backbuffer. Availability depends on: `BGFX_CAPS_TRANSPARENT_BACKBUFFER`.
 pub const ResetFlags_TransparentBackbuffer: ResetFlags  = 0x00100000;
+
+/// Enable low latency mode (NVIDIA Reflex). Availability depends on: `BGFX_CAPS_LOW_LATENCY`.
+pub const ResetFlags_LowLatencyOn: ResetFlags           = 0x00000400;
+
+/// Enable low latency mode, and keep GPU clocks high even when GPU is mostly idle. Availability depends on: `BGFX_CAPS_LOW_LATENCY`.
+pub const ResetFlags_LowLatencyBoost: ResetFlags        = 0x00000800;
+pub const ResetFlags_LowLatencyShift: ResetFlags        = 10;
+pub const ResetFlags_LowLatencyMask: ResetFlags         = 0x00000c00;
 pub const ResetFlags_FullscreenShift: ResetFlags        = 0;
 pub const ResetFlags_FullscreenMask: ResetFlags         = 0x00000001;
 pub const ResetFlags_ReservedShift: ResetFlags          = 31;
 pub const ResetFlags_ReservedMask: ResetFlags           = 0x80000000;
 
-pub const CapsFlags = u64;
-/// Alpha to coverage is supported.
-pub const CapsFlags_AlphaToCoverage: CapsFlags        = 0x0000000000000001;
+pub const SwapChainFlags = u32;
+/// Enable 2x MSAA.
+pub const SwapChainFlags_MsaaX2: SwapChainFlags                 = 0x00000010;
 
+/// Enable 4x MSAA.
+pub const SwapChainFlags_MsaaX4: SwapChainFlags                 = 0x00000020;
+
+/// Enable 8x MSAA.
+pub const SwapChainFlags_MsaaX8: SwapChainFlags                 = 0x00000030;
+
+/// Enable 16x MSAA.
+pub const SwapChainFlags_MsaaX16: SwapChainFlags                = 0x00000040;
+pub const SwapChainFlags_MsaaShift: SwapChainFlags              = 4;
+pub const SwapChainFlags_MsaaMask: SwapChainFlags               = 0x00000070;
+
+/// No swap chain flags.
+pub const SwapChainFlags_None: SwapChainFlags                   = 0x00000000;
+
+/// Not supported yet.
+pub const SwapChainFlags_Fullscreen: SwapChainFlags             = 0x00000001;
+
+/// Enable sRGB backbuffer.
+pub const SwapChainFlags_SrgbBackbuffer: SwapChainFlags         = 0x00008000;
+
+/// Enable HDR10 rendering.
+pub const SwapChainFlags_Hdr10: SwapChainFlags                  = 0x00010000;
+
+/// Enable HiDPI rendering.
+pub const SwapChainFlags_Hidpi: SwapChainFlags                  = 0x00020000;
+
+/// Transparent backbuffer. Availability depends on: `BGFX_CAPS_TRANSPARENT_BACKBUFFER`.
+pub const SwapChainFlags_TransparentBackbuffer: SwapChainFlags  = 0x00100000;
+pub const SwapChainFlags_FullscreenShift: SwapChainFlags        = 0;
+pub const SwapChainFlags_FullscreenMask: SwapChainFlags         = 0x00000001;
+
+pub const CapsFlags = u64;
 /// Blend independent is supported.
-pub const CapsFlags_BlendIndependent: CapsFlags       = 0x0000000000000002;
+pub const CapsFlags_BlendIndependent: CapsFlags       = 0x0000000000000001;
 
 /// Compute shaders are supported.
-pub const CapsFlags_Compute: CapsFlags                = 0x0000000000000004;
+pub const CapsFlags_Compute: CapsFlags                = 0x0000000000000002;
 
 /// Conservative rasterization is supported.
-pub const CapsFlags_ConservativeRaster: CapsFlags     = 0x0000000000000008;
+pub const CapsFlags_ConservativeRaster: CapsFlags     = 0x0000000000000004;
 
 /// Draw indirect is supported.
-pub const CapsFlags_DrawIndirect: CapsFlags           = 0x0000000000000010;
+pub const CapsFlags_DrawIndirect: CapsFlags           = 0x0000000000000008;
 
 /// Draw indirect with indirect count is supported.
-pub const CapsFlags_DrawIndirectCount: CapsFlags      = 0x0000000000000020;
-
-/// Fragment depth is available in fragment shader.
-pub const CapsFlags_FragmentDepth: CapsFlags          = 0x0000000000000040;
+pub const CapsFlags_DrawIndirectCount: CapsFlags      = 0x0000000000000010;
 
 /// Fragment ordering is available in fragment shader.
-pub const CapsFlags_FragmentOrdering: CapsFlags       = 0x0000000000000080;
+pub const CapsFlags_FragmentOrdering: CapsFlags       = 0x0000000000000020;
 
 /// Graphics debugger is present.
-pub const CapsFlags_GraphicsDebugger: CapsFlags       = 0x0000000000000100;
+pub const CapsFlags_GraphicsDebugger: CapsFlags       = 0x0000000000000040;
 
 /// HDR10 rendering is supported.
-pub const CapsFlags_Hdr10: CapsFlags                  = 0x0000000000000200;
-
-/// HiDPI rendering is supported.
-pub const CapsFlags_Hidpi: CapsFlags                  = 0x0000000000000400;
+pub const CapsFlags_Hdr10: CapsFlags                  = 0x0000000000000080;
 
 /// Image Read/Write is supported.
-pub const CapsFlags_ImageRw: CapsFlags                = 0x0000000000000800;
+pub const CapsFlags_ImageRw: CapsFlags                = 0x0000000000000100;
 
 /// 32-bit indices are supported.
-pub const CapsFlags_Index32: CapsFlags                = 0x0000000000001000;
+pub const CapsFlags_Index32: CapsFlags                = 0x0000000000000200;
 
-/// Instancing is supported.
-pub const CapsFlags_Instancing: CapsFlags             = 0x0000000000002000;
-
-/// Occlusion query is supported.
-pub const CapsFlags_OcclusionQuery: CapsFlags         = 0x0000000000004000;
+/// Low latency mode (NVIDIA Reflex) is supported.
+pub const CapsFlags_LowLatency: CapsFlags             = 0x0000000000000400;
 
 /// PrimitiveID is available in fragment shader.
-pub const CapsFlags_PrimitiveId: CapsFlags            = 0x0000000000008000;
+pub const CapsFlags_PrimitiveId: CapsFlags            = 0x0000000000000800;
 
 /// Renderer is on separate thread.
-pub const CapsFlags_RendererMultithreaded: CapsFlags  = 0x0000000000010000;
+pub const CapsFlags_RendererMultithreaded: CapsFlags  = 0x0000000000001000;
+
+/// 16-bit floats are supported in shaders.
+pub const CapsFlags_ShaderF16: CapsFlags              = 0x0000000000002000;
 
 /// Multiple windows are supported.
-pub const CapsFlags_SwapChain: CapsFlags              = 0x0000000000020000;
-
-/// Texture blit is supported.
-pub const CapsFlags_TextureBlit: CapsFlags            = 0x0000000000040000;
-
-/// Texture compare less equal mode is supported.
-pub const CapsFlags_TextureCompareLequal: CapsFlags   = 0x0000000000080000;
-pub const CapsFlags_TextureCompareReserved: CapsFlags = 0x0000000000100000;
+pub const CapsFlags_SwapChain: CapsFlags              = 0x0000000000004000;
 
 /// Cubemap texture array is supported.
-pub const CapsFlags_TextureCubeArray: CapsFlags       = 0x0000000000200000;
+pub const CapsFlags_TextureCubeArray: CapsFlags       = 0x0000000000008000;
 
 /// CPU direct access to GPU texture memory.
-pub const CapsFlags_TextureDirectAccess: CapsFlags    = 0x0000000000400000;
+pub const CapsFlags_TextureDirectAccess: CapsFlags    = 0x0000000000010000;
 
-/// Read-back texture is supported.
-pub const CapsFlags_TextureReadBack: CapsFlags        = 0x0000000000800000;
+/// External texture is supported.
+pub const CapsFlags_TextureExternal: CapsFlags        = 0x0000000000020000;
 
-/// 2D texture array is supported.
-pub const CapsFlags_Texture2DArray: CapsFlags         = 0x0000000001000000;
-
-/// 3D textures are supported.
-pub const CapsFlags_Texture3D: CapsFlags              = 0x0000000002000000;
+/// External shared texture is supported.
+pub const CapsFlags_TextureExternalShared: CapsFlags  = 0x0000000000040000;
 
 /// Transparent back buffer supported.
-pub const CapsFlags_TransparentBackbuffer: CapsFlags  = 0x0000000004000000;
+pub const CapsFlags_TransparentBackbuffer: CapsFlags  = 0x0000000000080000;
 
-/// Vertex attribute half-float is supported.
-pub const CapsFlags_VertexAttribHalf: CapsFlags       = 0x0000000008000000;
+/// Variable Rate Shading
+pub const CapsFlags_VariableRateShading: CapsFlags    = 0x0000000000100000;
 
 /// Vertex attribute 10_10_10_2 is supported.
-pub const CapsFlags_VertexAttribUint10: CapsFlags     = 0x0000000010000000;
+pub const CapsFlags_VertexAttribUint10: CapsFlags     = 0x0000000000200000;
 
-/// Rendering with VertexID only is supported.
-pub const CapsFlags_VertexId: CapsFlags               = 0x0000000020000000;
+/// Hardware video decode is supported.
+pub const CapsFlags_VideoDecode: CapsFlags            = 0x0000000000400000;
 
 /// Viewport layer is available in vertex shader.
-pub const CapsFlags_ViewportLayerArray: CapsFlags     = 0x0000000040000000;
-
-/// All texture compare modes are supported.
-pub const CapsFlags_TextureCompareAll: CapsFlags      = 0x0000000000180000;
+pub const CapsFlags_ViewportLayerArray: CapsFlags     = 0x0000000000800000;
 
 pub const CapsFormatFlags = u32;
 /// Texture format is not supported.
@@ -763,21 +766,108 @@ pub const CapsFormatFlags_TextureImageWrite: CapsFormatFlags      = 0x00000800;
 /// Texture format can be used as frame buffer.
 pub const CapsFormatFlags_TextureFramebuffer: CapsFormatFlags     = 0x00001000;
 
-/// Texture format can be used as MSAA frame buffer.
-pub const CapsFormatFlags_TextureFramebufferMsaa: CapsFormatFlags = 0x00002000;
-
 /// Texture can be sampled as MSAA.
-pub const CapsFormatFlags_TextureMsaa: CapsFormatFlags            = 0x00004000;
+pub const CapsFormatFlags_TextureMsaa: CapsFormatFlags            = 0x00002000;
 
 /// Texture format supports auto-generated mips.
-pub const CapsFormatFlags_TextureMipAutogen: CapsFormatFlags      = 0x00008000;
+pub const CapsFormatFlags_TextureMipAutogen: CapsFormatFlags      = 0x00004000;
 
-pub const ResolveFlags = u32;
-/// No resolve flags.
-pub const ResolveFlags_None: ResolveFlags                   = 0x00000000;
+/// Texture format can be used as back buffer format.
+pub const CapsFormatFlags_TextureBackbuffer: CapsFormatFlags      = 0x00008000;
+
+/// Texture format can be used as video decode destination.
+pub const CapsFormatFlags_TextureVideoDecodeDst: CapsFormatFlags  = 0x00010000;
+
+/// Texture format can be used as MSAA frame buffer with 2 samples.
+pub const CapsFormatFlags_TextureFramebufferMsaaX2: CapsFormatFlags = 0x00020000;
+
+/// Texture format can be used as MSAA frame buffer with 4 samples.
+pub const CapsFormatFlags_TextureFramebufferMsaaX4: CapsFormatFlags = 0x00040000;
+
+/// Texture format can be used as MSAA frame buffer with 8 samples.
+pub const CapsFormatFlags_TextureFramebufferMsaaX8: CapsFormatFlags = 0x00080000;
+
+/// Texture format can be used as MSAA frame buffer with 16 samples.
+pub const CapsFormatFlags_TextureFramebufferMsaaX16: CapsFormatFlags = 0x00100000;
+
+/// Texture format can be used as MSAA frame buffer with any sample count.
+pub const CapsFormatFlags_TextureFramebufferMsaa: CapsFormatFlags = 0x001e0000;
+
+pub const CapsVideoCodecFlags = u32;
+/// Video codec is not supported.
+pub const CapsVideoCodecFlags_None: CapsVideoCodecFlags                   = 0x00000000;
+
+/// 8-bit sample depth is supported.
+pub const CapsVideoCodecFlags_Bit8: CapsVideoCodecFlags                   = 0x00000001;
+
+/// 10-bit sample depth is supported.
+pub const CapsVideoCodecFlags_Bit10: CapsVideoCodecFlags                  = 0x00000002;
+
+/// 12-bit sample depth is supported.
+pub const CapsVideoCodecFlags_Bit12: CapsVideoCodecFlags                  = 0x00000004;
+
+/// 4:2:0 chroma subsampling is supported.
+pub const CapsVideoCodecFlags_Chroma420: CapsVideoCodecFlags              = 0x00000008;
+
+/// 4:2:2 chroma subsampling is supported.
+pub const CapsVideoCodecFlags_Chroma422: CapsVideoCodecFlags              = 0x00000010;
+
+/// 4:4:4 chroma subsampling is supported.
+pub const CapsVideoCodecFlags_Chroma444: CapsVideoCodecFlags              = 0x00000020;
+
+pub const VideoDecoderInitFlags = u32;
+/// No flags.
+pub const VideoDecoderInitFlags_None: VideoDecoderInitFlags                   = 0x00000000;
+
+/// Cache submitted access units in driver-managed memory keyed by `ptsUs` so the
+/// presentation clock can revisit / loop without re-streaming. The cache is
+/// unbounded: the app picks the total cache size implicitly by choosing how
+/// many access units to submit. Without this flag access units are decoded once
+/// and dropped (streaming default).
+pub const VideoDecoderInitFlags_Retain: VideoDecoderInitFlags                 = 0x00000001;
+
+pub const VideoDecodeFrameFlags = u32;
+/// No flags.
+pub const VideoDecodeFrameFlags_None: VideoDecodeFrameFlags                   = 0x00000000;
+
+/// First batch after a position change. The first access unit must be a clean IDR.
+/// Driver flushes its DPB, queued access units, and reorder pool before decoding;
+/// subsequent `presentationTimeUs` values may land anywhere (monotonicity is only
+/// required between non-`Set` ticks).
+pub const VideoDecodeFrameFlags_Set: VideoDecodeFrameFlags                    = 0x00000001;
+
+/// Skip the picker dispatch for this call. Useful while bulk-loading access units
+/// so the displayed picture isn't churned mid-load.
+pub const VideoDecodeFrameFlags_NoBlit: VideoDecodeFrameFlags                 = 0x00000002;
+
+/// Marks the last access unit of the clip; permits eager pre-decode in idle time
+/// and lets the picker emit the final frame without lookahead stalling.
+pub const VideoDecodeFrameFlags_Final: VideoDecodeFrameFlags                  = 0x00000004;
+
+/// When `presentationTimeUs` runs past the highest cached `ptsUs`, the picker
+/// wraps modulo the cached pts range. Without this flag the picker freezes on
+/// the last displayable picture.
+pub const VideoDecodeFrameFlags_Loop: VideoDecodeFrameFlags                   = 0x00000008;
+
+pub const AttachmentFlags = u32;
+/// No attachment flags.
+pub const AttachmentFlags_None: AttachmentFlags                   = 0x00000000;
 
 /// Auto-generate mip maps on resolve.
-pub const ResolveFlags_AutoGenMips: ResolveFlags            = 0x00000001;
+pub const AttachmentFlags_AutoGenMips: AttachmentFlags            = 0x00000001;
+
+/// Bind the depth aspect read-only (read-only depth-stencil view) so the
+/// attachment can be sampled as a texture in the same pass.
+pub const AttachmentFlags_ReadOnlyDepth: AttachmentFlags          = 0x00000002;
+
+/// Bind the stencil aspect read-only.
+pub const AttachmentFlags_ReadOnlyStencil: AttachmentFlags        = 0x00000004;
+
+/// Render with sRGB conversion; absence of this flag renders without
+/// it. Only affects textures created `BGFX_TEXTURE_SRGB_MUTABLE`,
+/// which must state the encoding explicitly on every attachment;
+/// ignored for any other texture.
+pub const AttachmentFlags_Srgb: AttachmentFlags                   = 0x00000008;
 
 pub const PciIdFlags = u16;
 /// Autoselect adapter.
@@ -795,7 +885,7 @@ pub const PciIdFlags_Apple: PciIdFlags                  = 0x106b;
 /// Intel adapter.
 pub const PciIdFlags_Intel: PciIdFlags                  = 0x8086;
 
-/// nVidia adapter.
+/// NVIDIA adapter.
 pub const PciIdFlags_Nvidia: PciIdFlags                 = 0x10de;
 
 /// Microsoft adapter.
@@ -822,6 +912,19 @@ pub const CubeMapFlags_PositiveZ: CubeMapFlags              = 0x00000004;
 
 /// Cubemap -z.
 pub const CubeMapFlags_NegativeZ: CubeMapFlags              = 0x00000005;
+
+pub const FrameFlags = u32;
+/// No frame flags.
+pub const FrameFlags_None: FrameFlags                   = 0x00000000;
+
+/// Capture frame with graphics debugger.
+pub const FrameFlags_DebugCapture: FrameFlags           = 0x00000001;
+
+/// Discard all draw calls.
+pub const FrameFlags_Discard: FrameFlags                = 0x00000002;
+
+/// Execute all rendering commands without presenting the backbuffer.
+pub const FrameFlags_Flush: FrameFlags                  = 0x00000004;
 
 pub const Fatal = enum(c_int) {
     DebugCheck,
@@ -855,14 +958,17 @@ pub const RendererType = enum(c_int) {
     /// NVN
     Nvn,
 
-    /// OpenGL ES 2.0+
+    /// OpenGL ES 3.0+
     OpenGLES,
 
-    /// OpenGL 2.1+
+    /// OpenGL 4.3+
     OpenGL,
 
     /// Vulkan
     Vulkan,
+
+    /// WebGPU
+    WebGPU,
 
     Count
 };
@@ -935,10 +1041,37 @@ pub const Attrib = enum(c_int) {
     /// a_texcoord7
     TexCoord7,
 
+    /// a_texcoord8
+    TexCoord8,
+
+    /// a_texcoord9
+    TexCoord9,
+
+    /// a_texcoord10
+    TexCoord10,
+
+    /// a_texcoord11
+    TexCoord11,
+
+    /// a_texcoord12
+    TexCoord12,
+
+    /// a_texcoord13
+    TexCoord13,
+
+    /// a_texcoord14
+    TexCoord14,
+
+    /// a_texcoord15
+    TexCoord15,
+
     Count
 };
 
 pub const AttribType = enum(c_int) {
+    /// Int8
+    Int8,
+
     /// Uint8
     Uint8,
 
@@ -948,182 +1081,338 @@ pub const AttribType = enum(c_int) {
     /// Int16
     Int16,
 
-    /// Half, availability depends on: `BGFX_CAPS_VERTEX_ATTRIB_HALF`.
+    /// Uint16
+    Uint16,
+
+    /// Half.
     Half,
 
     /// Float
     Float,
 
+    /// Int32
+    Int32,
+
+    /// Uint32
+    Uint32,
+
     Count
 };
 
 pub const TextureFormat = enum(c_int) {
-    /// DXT1 R5G6B5A1
+    /// Block Compression 1. 5-bit R, 6-bit G, 5-bit B, 1-bit A. 4 BPP.
     BC1,
 
-    /// DXT3 R5G6B5A4
+    /// Block Compression 2. 5-bit R, 6-bit G, 5-bit B, 4-bit explicit A. 8 BPP.
     BC2,
 
-    /// DXT5 R5G6B5A8
+    /// Block Compression 3. 5-bit R, 6-bit G, 5-bit B, 8-bit interpolated A. 8 BPP.
     BC3,
 
-    /// LATC1/ATI1 R8
+    /// Block Compression 4. Single 8-bit red channel, unsigned normalized. 4 BPP.
     BC4,
 
-    /// LATC2/ATI2 RG8
+    /// Block Compression 4. Single 8-bit red channel, signed normalized. 4 BPP.
+    BC4S,
+
+    /// Block Compression 5. Two 8-bit channels (RG), unsigned normalized. 8 BPP.
     BC5,
 
-    /// BC6H RGB16F
+    /// Block Compression 5. Two 8-bit channels (RG), signed normalized. 8 BPP.
+    BC5S,
+
+    /// Block Compression 6H. Three 16-bit floating-point channels (RGB), HDR. 8 BPP.
     BC6H,
 
-    /// BC7 RGB 4-7 bits per color channel, 0-8 bits alpha
+    /// Block Compression 6H. Three 16-bit unsigned floating-point channels (RGB), HDR. 8 BPP.
+    BC6HU,
+
+    /// RGB 4-7 bits per color channel, 0-8 bits alpha. Block Compression 7. High-quality RGBA, 4-7 bits per color, 0-8 bits alpha. 8 BPP.
     BC7,
 
-    /// ETC1 RGB8
+    /// Ericsson Texture Compression 1. 8-bit per channel RGB. 4 BPP.
     ETC1,
 
-    /// ETC2 RGB8
+    /// Ericsson Texture Compression 2. 8-bit per channel RGB. 4 BPP.
     ETC2,
 
-    /// ETC2 RGBA8
+    /// Ericsson Texture Compression 2 with full alpha. 8-bit per channel RGBA. 8 BPP.
     ETC2A,
 
-    /// ETC2 RGB8A1
+    /// Ericsson Texture Compression 2 with 1-bit punch-through alpha. 4 BPP.
     ETC2A1,
 
-    /// PVRTC1 RGB 2BPP
+    /// ETC2 Alpha Compression, single 11-bit red channel, unsigned normalized. 4 BPP.
+    EACR11,
+
+    /// ETC2 Alpha Compression, single 11-bit red channel, signed normalized. 4 BPP.
+    EACR11S,
+
+    /// ETC2 Alpha Compression, two 11-bit channels (RG), unsigned normalized. 8 BPP.
+    EACRG11,
+
+    /// ETC2 Alpha Compression, two 11-bit channels (RG), signed normalized. 8 BPP.
+    EACRG11S,
+
+    /// PowerVR Texture Compression v1. 3-channel RGB. 2 BPP.
     PTC12,
 
-    /// PVRTC1 RGB 4BPP
+    /// PowerVR Texture Compression v1. 3-channel RGB. 4 BPP.
     PTC14,
 
-    /// PVRTC1 RGBA 2BPP
+    /// PowerVR Texture Compression v1. 4-channel RGBA. 2 BPP.
     PTC12A,
 
-    /// PVRTC1 RGBA 4BPP
+    /// PowerVR Texture Compression v1. 4-channel RGBA. 4 BPP.
     PTC14A,
 
-    /// PVRTC2 RGBA 2BPP
+    /// PowerVR Texture Compression v2. 4-channel RGBA. 2 BPP.
     PTC22,
 
-    /// PVRTC2 RGBA 4BPP
+    /// PowerVR Texture Compression v2. 4-channel RGBA. 4 BPP.
     PTC24,
 
-    /// ATC RGB 4BPP
+    /// AMD Texture Compression. 3-channel RGB. 4 BPP.
     ATC,
 
-    /// ATCE RGBA 8 BPP explicit alpha
+    /// AMD Texture Compression with explicit alpha. 4-channel RGBA. 8 BPP.
     ATCE,
 
-    /// ATCI RGBA 8 BPP interpolated alpha
+    /// AMD Texture Compression with interpolated alpha. 4-channel RGBA. 8 BPP.
     ATCI,
 
-    /// ASTC 4x4 8.0 BPP
+    /// Adaptive Scalable Texture Compression, 4x4 block, RGBA. 8.00 BPP.
     ASTC4x4,
 
-    /// ASTC 5x4 6.40 BPP
+    /// Adaptive Scalable Texture Compression, 5x4 block, RGBA. 6.40 BPP.
     ASTC5x4,
 
-    /// ASTC 5x5 5.12 BPP
+    /// Adaptive Scalable Texture Compression, 5x5 block, RGBA. 5.12 BPP.
     ASTC5x5,
 
-    /// ASTC 6x5 4.27 BPP
+    /// Adaptive Scalable Texture Compression, 6x5 block, RGBA. 4.27 BPP.
     ASTC6x5,
 
-    /// ASTC 6x6 3.56 BPP
+    /// Adaptive Scalable Texture Compression, 6x6 block, RGBA. 3.56 BPP.
     ASTC6x6,
 
-    /// ASTC 8x5 3.20 BPP
+    /// Adaptive Scalable Texture Compression, 8x5 block, RGBA. 3.20 BPP.
     ASTC8x5,
 
-    /// ASTC 8x6 2.67 BPP
+    /// Adaptive Scalable Texture Compression, 8x6 block, RGBA. 2.67 BPP.
     ASTC8x6,
 
-    /// ASTC 8x8 2.00 BPP
+    /// Adaptive Scalable Texture Compression, 8x8 block, RGBA. 2.00 BPP.
     ASTC8x8,
 
-    /// ASTC 10x5 2.56 BPP
+    /// Adaptive Scalable Texture Compression, 10x5 block, RGBA. 2.56 BPP.
     ASTC10x5,
 
-    /// ASTC 10x6 2.13 BPP
+    /// Adaptive Scalable Texture Compression, 10x6 block, RGBA. 2.13 BPP.
     ASTC10x6,
 
-    /// ASTC 10x8 1.60 BPP
+    /// Adaptive Scalable Texture Compression, 10x8 block, RGBA. 1.60 BPP.
     ASTC10x8,
 
-    /// ASTC 10x10 1.28 BPP
+    /// Adaptive Scalable Texture Compression, 10x10 block, RGBA. 1.28 BPP.
     ASTC10x10,
 
-    /// ASTC 12x10 1.07 BPP
+    /// Adaptive Scalable Texture Compression, 12x10 block, RGBA. 1.07 BPP.
     ASTC12x10,
 
-    /// ASTC 12x12 0.89 BPP
+    /// Adaptive Scalable Texture Compression, 12x12 block, RGBA. 0.89 BPP.
     ASTC12x12,
 
     /// Compressed formats above.
     Unknown,
+
+    /// 1-bit single-channel red. Monochrome, 1-bit per pixel. 1 BPP.
     R1,
+
+    /// 8-bit single-channel alpha, unsigned normalized. 8 BPP.
     A8,
+
+    /// 8-bit single-channel red, unsigned normalized. 8 BPP.
     R8,
+
+    /// 8-bit single-channel red, signed integer. 8 BPP.
     R8I,
+
+    /// 8-bit single-channel red, unsigned integer. 8 BPP.
     R8U,
+
+    /// 8-bit single-channel red, signed normalized. 8 BPP.
     R8S,
+
+    /// 16-bit single-channel red, unsigned normalized. 16 BPP.
     R16,
+
+    /// 16-bit single-channel red, signed integer. 16 BPP.
     R16I,
+
+    /// 16-bit single-channel red, unsigned integer. 16 BPP.
     R16U,
+
+    /// 16-bit single-channel red, half-precision floating point. 16 BPP.
     R16F,
+
+    /// 16-bit single-channel red, signed normalized. 16 BPP.
     R16S,
+
+    /// 32-bit single-channel red, signed integer. 32 BPP.
     R32I,
+
+    /// 32-bit single-channel red, unsigned integer. 32 BPP.
     R32U,
+
+    /// 32-bit single-channel red, full-precision floating point. 32 BPP.
     R32F,
+
+    /// Two 8-bit channels (red, green), unsigned normalized. 16 BPP.
     RG8,
+
+    /// Two 8-bit channels (red, green), signed integer. 16 BPP.
     RG8I,
+
+    /// Two 8-bit channels (red, green), unsigned integer. 16 BPP.
     RG8U,
+
+    /// Two 8-bit channels (red, green), signed normalized. 16 BPP.
     RG8S,
+
+    /// Two 16-bit channels (red, green), unsigned normalized. 32 BPP.
     RG16,
+
+    /// Two 16-bit channels (red, green), signed integer. 32 BPP.
     RG16I,
+
+    /// Two 16-bit channels (red, green), unsigned integer. 32 BPP.
     RG16U,
+
+    /// Two 16-bit channels (red, green), half-precision floating point. 32 BPP.
     RG16F,
+
+    /// Two 16-bit channels (red, green), signed normalized. 32 BPP.
     RG16S,
+
+    /// Two 32-bit channels (red, green), signed integer. 64 BPP.
     RG32I,
+
+    /// Two 32-bit channels (red, green), unsigned integer. 64 BPP.
     RG32U,
+
+    /// Two 32-bit channels (red, green), full-precision floating point. 64 BPP.
     RG32F,
+
+    /// Three 8-bit channels (red, green, blue), unsigned normalized. 24 BPP.
     RGB8,
+
+    /// Three 8-bit channels (red, green, blue), signed integer. 24 BPP.
     RGB8I,
+
+    /// Three 8-bit channels (red, green, blue), unsigned integer. 24 BPP.
     RGB8U,
+
+    /// Three 8-bit channels (red, green, blue), signed normalized. 24 BPP.
     RGB8S,
+
+    /// Shared-exponent RGB. 9 bits per RGB channel with a shared 5-bit exponent, floating point. 32 BPP.
     RGB9E5F,
+
+    /// Four 8-bit channels (blue, green, red, alpha), unsigned normalized. BGRA byte order. 32 BPP.
     BGRA8,
+
+    /// Four 8-bit channels (red, green, blue, alpha), unsigned normalized. 32 BPP.
     RGBA8,
+
+    /// Four 8-bit channels (red, green, blue, alpha), signed integer. 32 BPP.
     RGBA8I,
+
+    /// Four 8-bit channels (red, green, blue, alpha), unsigned integer. 32 BPP.
     RGBA8U,
+
+    /// Four 8-bit channels (red, green, blue, alpha), signed normalized. 32 BPP.
     RGBA8S,
+
+    /// Four 16-bit channels (red, green, blue, alpha), unsigned normalized. 64 BPP.
     RGBA16,
+
+    /// Four 16-bit channels (red, green, blue, alpha), signed integer. 64 BPP.
     RGBA16I,
+
+    /// Four 16-bit channels (red, green, blue, alpha), unsigned integer. 64 BPP.
     RGBA16U,
+
+    /// Four 16-bit channels (red, green, blue, alpha), half-precision floating point. 64 BPP.
     RGBA16F,
+
+    /// Four 16-bit channels (red, green, blue, alpha), signed normalized. 64 BPP.
     RGBA16S,
+
+    /// Four 32-bit channels (red, green, blue, alpha), signed integer. 128 BPP.
     RGBA32I,
+
+    /// Four 32-bit channels (red, green, blue, alpha), unsigned integer. 128 BPP.
     RGBA32U,
+
+    /// Four 32-bit channels (red, green, blue, alpha), full-precision floating point. 128 BPP.
     RGBA32F,
+
+    /// Packed 16-bit, 5-bit blue, 6-bit green, 5-bit red. BGR byte order, unsigned normalized. 16 BPP.
     B5G6R5,
+
+    /// Packed 16-bit, 5-bit red, 6-bit green, 5-bit blue. RGB byte order, unsigned normalized. 16 BPP.
     R5G6B5,
+
+    /// Packed 16-bit, 4-bit per channel (blue, green, red, alpha). BGRA byte order, unsigned normalized. 16 BPP.
     BGRA4,
+
+    /// Packed 16-bit, 4-bit per channel (red, green, blue, alpha), unsigned normalized. 16 BPP.
     RGBA4,
+
+    /// Packed 16-bit, 5-bit blue, 5-bit green, 5-bit red, 1-bit alpha. BGRA byte order, unsigned normalized. 16 BPP.
     BGR5A1,
+
+    /// Packed 16-bit, 5-bit red, 5-bit green, 5-bit blue, 1-bit alpha, unsigned normalized. 16 BPP.
     RGB5A1,
+
+    /// Packed 32-bit, 10-bit red, 10-bit green, 10-bit blue, 2-bit alpha, unsigned normalized. 32 BPP.
     RGB10A2,
+
+    /// Packed 32-bit, 10-bit red, 10-bit green, 10-bit blue, 2-bit alpha, unsigned integer. 32 BPP.
+    RGB10A2U,
+
+    /// Packed 32-bit, 11-bit red, 11-bit green, 10-bit blue, unsigned floating point. No alpha. 32 BPP.
     RG11B10F,
 
     /// Depth formats below.
     UnknownDepth,
+
+    /// 16-bit depth, unsigned normalized. 16 BPP.
     D16,
+
+    /// 24-bit depth, unsigned normalized (stored as 32-bit with 8 bits unused). 32 BPP.
     D24,
+
+    /// 24-bit depth, unsigned normalized, with 8-bit stencil. 32 BPP.
     D24S8,
+
+    /// 32-bit depth, unsigned normalized. 32 BPP.
     D32,
+
+    /// 16-bit depth, floating point. 16 BPP.
     D16F,
+
+    /// 24-bit depth, floating point (stored as 32-bit). 32 BPP.
     D24F,
+
+    /// 32-bit depth, floating point. 32 BPP.
     D32F,
+
+    /// 32-bit depth, floating point, with 8-bit stencil (stored as 64-bit). 64 BPP.
+    D32FS8,
+
+    /// 8-bit stencil only, no depth. 8 BPP.
     D0S8,
 
     Count
@@ -1148,23 +1437,36 @@ pub const UniformType = enum(c_int) {
     Count
 };
 
+pub const UniformFreq = enum(c_int) {
+    /// Changing per draw call.
+    Draw,
+
+    /// Changing per view.
+    View,
+
+    /// Changing per frame.
+    Frame,
+
+    Count
+};
+
 pub const BackbufferRatio = enum(c_int) {
-    /// Equal to backbuffer.
+    /// Equal to the main window's backbuffer.
     Equal,
 
-    /// One half size of backbuffer.
+    /// One half size of the main window's backbuffer.
     Half,
 
-    /// One quarter size of backbuffer.
+    /// One quarter size of the main window's backbuffer.
     Quarter,
 
-    /// One eighth size of backbuffer.
+    /// One eighth size of the main window's backbuffer.
     Eighth,
 
-    /// One sixteenth size of backbuffer.
+    /// One sixteenth size of the main window's backbuffer.
     Sixteenth,
 
-    /// Double size of backbuffer.
+    /// Double size of the main window's backbuffer.
     Double,
 
     Count
@@ -1179,6 +1481,19 @@ pub const OcclusionQueryResult = enum(c_int) {
 
     /// Query result is not available yet.
     NoResult,
+
+    Count
+};
+
+pub const VideoCodec = enum(c_int) {
+    /// H.264 / AVC.
+    H264,
+
+    /// H.265 / HEVC.
+    H265,
+
+    /// AV1.
+    AV1,
 
     Count
 };
@@ -1254,6 +1569,31 @@ pub const ViewMode = enum(c_int) {
     Count
 };
 
+pub const ShadingRate = enum(c_int) {
+    /// 1x1
+    Rate1x1,
+
+    /// 1x2
+    Rate1x2,
+
+    /// 2x1
+    Rate2x1,
+
+    /// 2x2
+    Rate2x2,
+
+    /// 2x4
+    Rate2x4,
+
+    /// 4x2
+    Rate4x2,
+
+    /// 4x4
+    Rate4x4,
+
+    Count
+};
+
 pub const NativeWindowHandleType = enum(c_int) {
     /// Platform default handle type (X11 on Linux).
     Default,
@@ -1301,6 +1641,8 @@ pub const Caps = extern struct {
         maxComputeBindings: u32,
         maxVertexLayouts: u32,
         maxVertexStreams: u32,
+        maxVertexAttributes: u32,
+        maxInstanceData: u32,
         maxIndexBuffers: u32,
         maxVertexBuffers: u32,
         maxDynamicIndexBuffers: u32,
@@ -1309,8 +1651,12 @@ pub const Caps = extern struct {
         maxOcclusionQueries: u32,
         maxEncoders: u32,
         minResourceCbSize: u32,
-        transientVbSize: u32,
-        transientIbSize: u32,
+        maxTransientVbSize: u32,
+        maxTransientIbSize: u32,
+        minUniformBufferSize: u32,
+        minUniformCacheSize: u32,
+        blitRowPitchAlign: u32,
+        blitOffsetAlign: u32,
     };
 
         rendererType: RendererType,
@@ -1322,7 +1668,8 @@ pub const Caps = extern struct {
         numGPUs: u8,
         gpu: [4]GPU,
         limits: Limits,
-        formats: [96]u16,
+        formats: [105]u32,
+        codecs: [3]u32,
     };
 
     pub const InternalData = extern struct {
@@ -1331,30 +1678,35 @@ pub const Caps = extern struct {
     };
 
     pub const PlatformData = extern struct {
-        ndt: ?*anyopaque,
-        nwh: ?*anyopaque,
         context: ?*anyopaque,
-        backBuffer: ?*anyopaque,
-        backBufferDS: ?*anyopaque,
+        queue: ?*anyopaque,
         type: NativeWindowHandleType,
     };
 
-    pub const Resolution = extern struct {
-        format: TextureFormat,
+    pub const SwapChain = extern struct {
+        nwh: ?*anyopaque,
+        ndt: ?*anyopaque,
         width: u32,
         height: u32,
-        reset: u32,
+        flags: u32,
+        formatColor: TextureFormat,
+        formatDepthStencil: TextureFormat,
+        depth: TextureHandle,
         numBackBuffers: u8,
         maxFrameLatency: u8,
-        debugTextScale: u8,
     };
 
 pub const Init = extern struct {
     pub const Limits = extern struct {
         maxEncoders: u16,
+        numDrawCalls: u32,
+        numDrawCallPeakFrames: u32,
+        minViews: u32,
         minResourceCbSize: u32,
-        transientVbSize: u32,
-        transientIbSize: u32,
+        maxTransientVbSize: u32,
+        maxTransientIbSize: u32,
+        minUniformBufferSize: u32,
+        minUniformCacheSize: u32,
     };
 
         type: RendererType,
@@ -1363,8 +1715,11 @@ pub const Init = extern struct {
         capabilities: u64,
         debug: bool,
         profile: bool,
+        fallback: bool,
+        videoDecode: bool,
         platformData: PlatformData,
-        resolution: Resolution,
+        swapChain: SwapChain,
+        reset: u32,
         limits: Limits,
         callback: ?*anyopaque,
         allocator: ?*anyopaque,
@@ -1401,6 +1756,52 @@ pub const Init = extern struct {
         handle: VertexBufferHandle,
     };
 
+    pub const TextureRegion = extern struct {
+        handle: TextureHandle,
+        mip: u8,
+        x: u16,
+        y: u16,
+        z: u16,
+        width: u16,
+        height: u16,
+        depth: u16,
+        /// Fill in the region of a plain 2D texture. `mip`, `z` and `depth` are left
+        /// at zero, which addresses mip 0 of the only slice a 2D texture has.
+        /// <param name="_handle">Texture handle.</param>
+        /// <param name="_x">X position of the region.</param>
+        /// <param name="_y">Y position of the region.</param>
+        /// <param name="_width">Width of the region. 0 uses the rest of the mip from `_x`.</param>
+        /// <param name="_height">Height of the region. 0 uses the rest of the mip from `_y`.</param>
+        pub inline fn init(self: *TextureRegion, _handle: TextureHandle, _x: u16, _y: u16, _width: u16, _height: u16) void {
+            return bgfx_texture_region_init(self, _handle, _x, _y, _width, _height);
+        }
+    };
+
+    pub const BufferRegion = extern struct {
+        handle: BufferHandle,
+        offset: u32,
+        size: u32,
+        rowPitch: u32,
+        slicePitch: u32,
+        /// Fill `rowPitch`, `slicePitch` and `size` with the layout the backend copies
+        /// fastest for `_texture`, and round `offset` up to `Caps::Limits::blitOffsetAlign`.
+        /// `handle` is left untouched, so `size` can be used to create the buffer the
+        /// region will point at.
+        /// <param name="_texture">Texture region the buffer is copied to or from.</param>
+        pub inline fn initTexture(self: *BufferRegion, _texture: [*c]const TextureRegion) void {
+            return bgfx_buffer_region_init_texture(self, _texture);
+        }
+        /// Fill in the region a blit between two buffers copies. `rowPitch` and
+        /// `slicePitch` are left at zero, since neither end of such a blit is a
+        /// texture.
+        /// <param name="_handle">Buffer handle.</param>
+        /// <param name="_offset">Byte offset into the buffer.</param>
+        /// <param name="_size">Number of bytes. 0 uses the rest of the buffer.</param>
+        pub inline fn initBuffer(self: *BufferRegion, _handle: BufferHandle, _offset: u32, _size: u32) void {
+            return bgfx_buffer_region_init_buffer(self, _handle, _offset, _size);
+        }
+    };
+
     pub const TextureInfo = extern struct {
         format: TextureFormat,
         storageSize: u32,
@@ -1411,6 +1812,29 @@ pub const Init = extern struct {
         numMips: u8,
         bitsPerPixel: u8,
         cubeMap: bool,
+    };
+
+    pub const VideoDecoderInit = extern struct {
+        magic: u32,
+        codec: VideoCodec,
+        parameterSets: [*c]const u8,
+        parameterSetsSize: u32,
+        cachedAuBytes: u32,
+        flags: u8,
+    };
+
+    pub const VideoDecoderAu = extern struct {
+        size: u32,
+        ptsUs: i64,
+    };
+
+    pub const VideoDecoderFrame = extern struct {
+        magic: u32,
+        bitstream: [*c]const u8,
+        aus: [*c]const VideoDecoderAu,
+        numAus: u32,
+        presentationTimeUs: i64,
+        flags: u8,
     };
 
     pub const UniformInfo = extern struct {
@@ -1425,16 +1849,16 @@ pub const Init = extern struct {
         mip: u16,
         layer: u16,
         numLayers: u16,
-        resolve: u8,
+        flags: u8,
         /// Init attachment.
         /// <param name="_handle">Render target texture handle.</param>
         /// <param name="_access">Access. See `Access::Enum`.</param>
         /// <param name="_layer">Cubemap side or depth layer/slice to use.</param>
         /// <param name="_numLayers">Number of texture layer/slice(s) in array to use.</param>
         /// <param name="_mip">Mip level.</param>
-        /// <param name="_resolve">Resolve flags. See: `BGFX_RESOLVE_*`</param>
-        pub inline fn init(self: *Attachment, _handle: TextureHandle, _access: Access, _layer: u16, _numLayers: u16, _mip: u16, _resolve: u8) void {
-            return bgfx_attachment_init(self, _handle, _access, _layer, _numLayers, _mip, _resolve);
+        /// <param name="_flags">Attachment flags. See: `BGFX_ATTACHMENT_*`</param>
+        pub inline fn init(self: *Attachment, _handle: TextureHandle, _access: Access, _layer: u16, _numLayers: u16, _mip: u16, _flags: u8) void {
+            return bgfx_attachment_init(self, _handle, _access, _layer, _numLayers, _mip, _flags);
         }
     };
 
@@ -1468,9 +1892,18 @@ pub const Init = extern struct {
         gpuTimerFreq: i64,
         waitRender: i64,
         waitSubmit: i64,
+        latencySleep: i64,
+        latencyTotal: i64,
+        latencySimulation: i64,
+        latencyRenderSubmit: i64,
+        latencyPresent: i64,
+        latencyQueue: i64,
+        latencyGpu: i64,
         numDraw: u32,
         numCompute: u32,
         numBlit: u32,
+        numBlitRepack: u32,
+        numDrawCallsPeak: u32,
         maxGpuLatency: u32,
         gpuFrameNum: u32,
         numDynamicIndexBuffers: u16,
@@ -1504,15 +1937,17 @@ pub const Init = extern struct {
     pub const VertexLayout = extern struct {
         hash: u32,
         stride: u16,
-        offset: [18]u16,
-        attributes: [18]u16,
+        offset: [26]u16,
+        attributes: [26]u16,
         /// Start VertexLayout.
         /// <param name="_rendererType">Renderer backend type. See: `bgfx::RendererType`</param>
         pub inline fn begin(self: *VertexLayout, _rendererType: RendererType) *VertexLayout {
             return bgfx_vertex_layout_begin(self, _rendererType);
         }
         /// Add attribute to VertexLayout.
+        /// 
         /// @remarks Must be called between begin/end.
+        /// 
         /// <param name="_attrib">Attribute semantics. See: `bgfx::Attrib`</param>
         /// <param name="_num">Number of elements 1, 2, 3 or 4.</param>
         /// <param name="_type">Element type.</param>
@@ -1550,6 +1985,7 @@ pub const Init = extern struct {
             return bgfx_encoder_set_marker(self, _name, _len);
         }
         /// Set render states for draw primitive.
+        /// 
         /// @remarks
         ///   1. To set up more complex states use:
         ///      `BGFX_STATE_ALPHA_REF(_ref)`,
@@ -1560,6 +1996,7 @@ pub const Init = extern struct {
         ///      `BGFX_STATE_BLEND_EQUATION_SEPARATE(_equationRGB, _equationA)`
         ///   2. `BGFX_STATE_BLEND_EQUATION_ADD` is set when no other blend
         ///      equation is specified.
+        /// 
         /// <param name="_state">State flags. Default state for primitive type is   triangles. See: `BGFX_STATE_DEFAULT`.   - `BGFX_STATE_DEPTH_TEST_*` - Depth test function.   - `BGFX_STATE_BLEND_*` - See remark 1 about BGFX_STATE_BLEND_FUNC.   - `BGFX_STATE_BLEND_EQUATION_*` - See remark 2.   - `BGFX_STATE_CULL_*` - Backface culling mode.   - `BGFX_STATE_WRITE_*` - Enable R, G, B, A or Z write.   - `BGFX_STATE_MSAA` - Enable hardware multisample antialiasing.   - `BGFX_STATE_PT_[TRISTRIP/LINES/POINTS]` - Primitive type.</param>
         /// <param name="_rgba">Sets blend factor used by `BGFX_STATE_BLEND_FACTOR` and   `BGFX_STATE_BLEND_INV_FACTOR` blend modes.</param>
         pub inline fn setState(self: ?*Encoder, _state: u64, _rgba: u32) void {
@@ -1577,9 +2014,18 @@ pub const Init = extern struct {
         pub inline fn setStencil(self: ?*Encoder, _fstencil: u32, _bstencil: u32) void {
             return bgfx_encoder_set_stencil(self, _fstencil, _bstencil);
         }
+        /// Set multisample coverage mask for draw primitive. Samples whose bit is clear
+        /// in the mask are never written, regardless of the coverage the rasterizer
+        /// computes. Only has an effect when rendering to a multisampled target.
+        /// <param name="_mask">Sample coverage mask.</param>
+        pub inline fn setSampleMask(self: ?*Encoder, _mask: u32) void {
+            return bgfx_encoder_set_sample_mask(self, _mask);
+        }
         /// Set scissor for draw primitive.
+        /// 
         /// @remark
         ///   To scissor for all primitives in view see `bgfx::setViewScissor`.
+        /// 
         /// <param name="_x">Position x from the left corner of the window.</param>
         /// <param name="_y">Position y from the top corner of the window.</param>
         /// <param name="_width">Width of view scissor region.</param>
@@ -1588,11 +2034,27 @@ pub const Init = extern struct {
             return bgfx_encoder_set_scissor(self, _x, _y, _width, _height);
         }
         /// Set scissor from cache for draw primitive.
+        /// 
         /// @remark
         ///   To scissor for all primitives in view see `bgfx::setViewScissor`.
+        /// 
         /// <param name="_cache">Index in scissor cache.</param>
         pub inline fn setScissorCached(self: ?*Encoder, _cache: u16) void {
             return bgfx_encoder_set_scissor_cached(self, _cache);
+        }
+        /// Set depth control (depth bias and depth clip) for draw primitive. Overrides the
+        /// view depth bias for this draw.
+        /// <param name="_constant">Constant depth bias.</param>
+        /// <param name="_slopeScale">Slope-scaled depth bias.</param>
+        /// <param name="_clamp">Depth bias clamp.</param>
+        /// <param name="_depthClamp">Disable depth clipping and clamp NDC depth to the [0,1] range instead.</param>
+        pub inline fn setDepthControl(self: ?*Encoder, _constant: i32, _slopeScale: f32, _clamp: f32, _depthClamp: bool) u16 {
+            return bgfx_encoder_set_depth_control(self, _constant, _slopeScale, _clamp, _depthClamp);
+        }
+        /// Set depth control from depth-control cache for draw primitive.
+        /// <param name="_cache">Index in depth control cache.</param>
+        pub inline fn setDepthControlCached(self: ?*Encoder, _cache: u16) void {
+            return bgfx_encoder_set_depth_control_cached(self, _cache);
         }
         /// Set model matrix for draw primitive. If it is not called,
         /// the model will be rendered with an identity model matrix.
@@ -1608,7 +2070,9 @@ pub const Init = extern struct {
             return bgfx_encoder_set_transform_cached(self, _cache, _num);
         }
         /// Reserve matrices in internal matrix cache.
+        /// 
         /// @attention Pointer returned can be modified until `bgfx::frame` is called.
+        /// 
         /// <param name="_transform">Pointer to `Transform` structure.</param>
         /// <param name="_num">Number of matrices.</param>
         pub inline fn allocTransform(self: ?*Encoder, _transform: [*c]Transform, _num: u16) u32 {
@@ -1620,6 +2084,16 @@ pub const Init = extern struct {
         /// <param name="_num">Number of elements. Passing `UINT16_MAX` will use the _num passed on uniform creation.</param>
         pub inline fn setUniform(self: ?*Encoder, _handle: UniformHandle, _value: ?*const anyopaque, _num: u16) void {
             return bgfx_encoder_set_uniform(self, _handle, _value, _num);
+        }
+        /// Set shader uniform parameter by reference. Unlike `Encoder::setUniform`, the data
+        /// is not copied immediately; the renderer reads it from `_value` at frame render
+        /// time. The pointer must remain valid and unchanged until the frame is rendered
+        /// (up to two `bgfx::frame` calls with multithreaded submission).
+        /// <param name="_handle">Uniform.</param>
+        /// <param name="_value">Pointer to uniform data. Must stay valid until the frame is rendered.</param>
+        /// <param name="_num">Number of elements. Passing `UINT16_MAX` will use the _num passed on uniform creation.</param>
+        pub inline fn setUniformRef(self: ?*Encoder, _handle: UniformHandle, _value: ?*const anyopaque, _num: u16) void {
+            return bgfx_encoder_set_uniform_ref(self, _handle, _value, _num);
         }
         /// Set index buffer for draw primitive.
         /// <param name="_handle">Index buffer.</param>
@@ -1667,6 +2141,12 @@ pub const Init = extern struct {
         pub inline fn setDynamicVertexBuffer(self: ?*Encoder, _stream: u8, _handle: DynamicVertexBufferHandle, _startVertex: u32, _numVertices: u32) void {
             return bgfx_encoder_set_dynamic_vertex_buffer(self, _stream, _handle, _startVertex, _numVertices);
         }
+        /// Set vertex buffer for draw primitive.
+        /// <param name="_stream">Vertex stream.</param>
+        /// <param name="_handle">Dynamic vertex buffer.</param>
+        /// <param name="_startVertex">First vertex to render.</param>
+        /// <param name="_numVertices">Number of vertices to render.</param>
+        /// <param name="_layoutHandle">Vertex layout for aliasing vertex buffer. If invalid handle is used, vertex layout used for creation of vertex buffer will be used.</param>
         pub inline fn setDynamicVertexBufferWithLayout(self: ?*Encoder, _stream: u8, _handle: DynamicVertexBufferHandle, _startVertex: u32, _numVertices: u32, _layoutHandle: VertexLayoutHandle) void {
             return bgfx_encoder_set_dynamic_vertex_buffer_with_layout(self, _stream, _handle, _startVertex, _numVertices, _layoutHandle);
         }
@@ -1689,7 +2169,8 @@ pub const Init = extern struct {
         }
         /// Set number of vertices for auto generated vertices use in conjunction
         /// with gl_VertexID.
-        /// @attention Availability depends on: `BGFX_CAPS_VERTEX_ID`.
+        /// 
+        /// 
         /// <param name="_numVertices">Number of vertices.</param>
         pub inline fn setVertexCount(self: ?*Encoder, _numVertices: u32) void {
             return bgfx_encoder_set_vertex_count(self, _numVertices);
@@ -1717,7 +2198,9 @@ pub const Init = extern struct {
         }
         /// Set number of instances for auto generated instances use in conjunction
         /// with gl_InstanceID.
-        /// @attention Availability depends on: `BGFX_CAPS_VERTEX_ID`.
+        /// 
+        /// 
+        /// <param name="_numInstances">Number of instances.</param>
         pub inline fn setInstanceCount(self: ?*Encoder, _numInstances: u32) void {
             return bgfx_encoder_set_instance_count(self, _numInstances);
         }
@@ -1729,12 +2212,29 @@ pub const Init = extern struct {
         pub inline fn setTexture(self: ?*Encoder, _stage: u8, _sampler: UniformHandle, _handle: TextureHandle, _flags: u32) void {
             return bgfx_encoder_set_texture(self, _stage, _sampler, _handle, _flags);
         }
+        /// Set texture stage for draw primitive, selecting a sub-range of the
+        /// texture's array layers and mip levels.
+        /// <param name="_stage">Texture unit.</param>
+        /// <param name="_sampler">Program sampler.</param>
+        /// <param name="_handle">Texture handle.</param>
+        /// <param name="_firstLayer">First array layer.</param>
+        /// <param name="_numLayers">Number of array layers.</param>
+        /// <param name="_firstMip">First (most detailed) mip level.</param>
+        /// <param name="_numMips">Number of mip levels.</param>
+        /// <param name="_flags">Texture sampling mode. Default value UINT32_MAX uses   texture sampling settings from the texture.   - `BGFX_SAMPLER_[U/V/W]_[MIRROR/CLAMP]` - Mirror or clamp to edge wrap     mode.   - `BGFX_SAMPLER_[MIN/MAG/MIP]_[POINT/ANISOTROPIC]` - Point or anisotropic     sampling.</param>
+        /// <param name="_lodMin">Lowest (most detailed) level of detail the sampler may use, in quarter-mip steps, relative to `_firstMip`.</param>
+        /// <param name="_lodMax">Highest (least detailed) level of detail the sampler may use, in quarter-mip steps, relative to `_firstMip`. `UINT8_MAX` leaves it unclamped.</param>
+        pub inline fn setTextureView(self: ?*Encoder, _stage: u8, _sampler: UniformHandle, _handle: TextureHandle, _firstLayer: u16, _numLayers: u16, _firstMip: u8, _numMips: u8, _flags: u32, _lodMin: u8, _lodMax: u8) void {
+            return bgfx_encoder_set_texture_view(self, _stage, _sampler, _handle, _firstLayer, _numLayers, _firstMip, _numMips, _flags, _lodMin, _lodMax);
+        }
         /// Submit an empty primitive for rendering. Uniforms and draw state
         /// will be applied but no geometry will be submitted. Useful in cases
         /// when no other draw/compute primitive is submitted to view, but it's
         /// desired to execute clear view.
+        /// 
         /// @remark
         ///   These empty draw calls will sort before ordinary draw calls.
+        /// 
         /// <param name="_id">View id.</param>
         pub inline fn touch(self: ?*Encoder, _id: ViewId) void {
             return bgfx_encoder_touch(self, _id);
@@ -1758,7 +2258,9 @@ pub const Init = extern struct {
         }
         /// Submit primitive for rendering with index and instance data info from
         /// indirect buffer.
+        /// 
         /// @attention Availability depends on: `BGFX_CAPS_DRAW_INDIRECT`.
+        /// 
         /// <param name="_id">View id.</param>
         /// <param name="_program">Program.</param>
         /// <param name="_indirectHandle">Indirect buffer.</param>
@@ -1771,7 +2273,9 @@ pub const Init = extern struct {
         }
         /// Submit primitive for rendering with index and instance data info and
         /// draw count from indirect buffers.
+        /// 
         /// @attention Availability depends on: `BGFX_CAPS_DRAW_INDIRECT_COUNT`.
+        /// 
         /// <param name="_id">View id.</param>
         /// <param name="_program">Program.</param>
         /// <param name="_indirectHandle">Indirect buffer.</param>
@@ -1788,29 +2292,37 @@ pub const Init = extern struct {
         /// <param name="_stage">Compute stage.</param>
         /// <param name="_handle">Index buffer handle.</param>
         /// <param name="_access">Buffer access. See `Access::Enum`.</param>
-        pub inline fn setComputeIndexBuffer(self: ?*Encoder, _stage: u8, _handle: IndexBufferHandle, _access: Access) void {
-            return bgfx_encoder_set_compute_index_buffer(self, _stage, _handle, _access);
+        /// <param name="_offset">Byte offset the shader's view of the buffer starts at. Must be a multiple of 256 bytes.</param>
+        /// <param name="_size">Bytes bound from the offset, `UINT32_MAX` for the rest of the buffer.</param>
+        pub inline fn setComputeIndexBuffer(self: ?*Encoder, _stage: u8, _handle: IndexBufferHandle, _access: Access, _offset: u32, _size: u32) void {
+            return bgfx_encoder_set_compute_index_buffer(self, _stage, _handle, _access, _offset, _size);
         }
         /// Set compute vertex buffer.
         /// <param name="_stage">Compute stage.</param>
         /// <param name="_handle">Vertex buffer handle.</param>
         /// <param name="_access">Buffer access. See `Access::Enum`.</param>
-        pub inline fn setComputeVertexBuffer(self: ?*Encoder, _stage: u8, _handle: VertexBufferHandle, _access: Access) void {
-            return bgfx_encoder_set_compute_vertex_buffer(self, _stage, _handle, _access);
+        /// <param name="_offset">Byte offset the shader's view of the buffer starts at. Must be a multiple of 256 bytes.</param>
+        /// <param name="_size">Bytes bound from the offset, `UINT32_MAX` for the rest of the buffer.</param>
+        pub inline fn setComputeVertexBuffer(self: ?*Encoder, _stage: u8, _handle: VertexBufferHandle, _access: Access, _offset: u32, _size: u32) void {
+            return bgfx_encoder_set_compute_vertex_buffer(self, _stage, _handle, _access, _offset, _size);
         }
         /// Set compute dynamic index buffer.
         /// <param name="_stage">Compute stage.</param>
         /// <param name="_handle">Dynamic index buffer handle.</param>
         /// <param name="_access">Buffer access. See `Access::Enum`.</param>
-        pub inline fn setComputeDynamicIndexBuffer(self: ?*Encoder, _stage: u8, _handle: DynamicIndexBufferHandle, _access: Access) void {
-            return bgfx_encoder_set_compute_dynamic_index_buffer(self, _stage, _handle, _access);
+        /// <param name="_offset">Byte offset the shader's view of the buffer starts at. Must be a multiple of 256 bytes.</param>
+        /// <param name="_size">Bytes bound from the offset, `UINT32_MAX` for the rest of the buffer.</param>
+        pub inline fn setComputeDynamicIndexBuffer(self: ?*Encoder, _stage: u8, _handle: DynamicIndexBufferHandle, _access: Access, _offset: u32, _size: u32) void {
+            return bgfx_encoder_set_compute_dynamic_index_buffer(self, _stage, _handle, _access, _offset, _size);
         }
         /// Set compute dynamic vertex buffer.
         /// <param name="_stage">Compute stage.</param>
         /// <param name="_handle">Dynamic vertex buffer handle.</param>
         /// <param name="_access">Buffer access. See `Access::Enum`.</param>
-        pub inline fn setComputeDynamicVertexBuffer(self: ?*Encoder, _stage: u8, _handle: DynamicVertexBufferHandle, _access: Access) void {
-            return bgfx_encoder_set_compute_dynamic_vertex_buffer(self, _stage, _handle, _access);
+        /// <param name="_offset">Byte offset the shader's view of the buffer starts at. Must be a multiple of 256 bytes.</param>
+        /// <param name="_size">Bytes bound from the offset, `UINT32_MAX` for the rest of the buffer.</param>
+        pub inline fn setComputeDynamicVertexBuffer(self: ?*Encoder, _stage: u8, _handle: DynamicVertexBufferHandle, _access: Access, _offset: u32, _size: u32) void {
+            return bgfx_encoder_set_compute_dynamic_vertex_buffer(self, _stage, _handle, _access, _offset, _size);
         }
         /// Set compute indirect buffer.
         /// <param name="_stage">Compute stage.</param>
@@ -1827,6 +2339,18 @@ pub const Init = extern struct {
         /// <param name="_format">Texture format. See: `TextureFormat::Enum`.</param>
         pub inline fn setImage(self: ?*Encoder, _stage: u8, _handle: TextureHandle, _mip: u8, _access: Access, _format: TextureFormat) void {
             return bgfx_encoder_set_image(self, _stage, _handle, _mip, _access, _format);
+        }
+        /// Set compute image stage for draw primitive, selecting a sub-range of the
+        /// texture's array layers and mip levels.
+        /// <param name="_stage">Compute stage.</param>
+        /// <param name="_handle">Texture handle.</param>
+        /// <param name="_firstLayer">First array layer.</param>
+        /// <param name="_numLayers">Number of array layers.</param>
+        /// <param name="_mip">Mip level.</param>
+        /// <param name="_access">Image access. See `Access::Enum`.</param>
+        /// <param name="_format">Texture format. See: `TextureFormat::Enum`.</param>
+        pub inline fn setImageView(self: ?*Encoder, _stage: u8, _handle: TextureHandle, _firstLayer: u16, _numLayers: u16, _mip: u8, _access: Access, _format: TextureFormat) void {
+            return bgfx_encoder_set_image_view(self, _stage, _handle, _firstLayer, _numLayers, _mip, _access, _format);
         }
         /// Dispatch compute.
         /// <param name="_id">View id.</param>
@@ -1853,25 +2377,87 @@ pub const Init = extern struct {
         pub inline fn discard(self: ?*Encoder, _flags: u8) void {
             return bgfx_encoder_discard(self, _flags);
         }
-        /// Blit 2D texture region between two 2D textures.
+        /// Blit texture region between two textures.
+        /// 
+        /// @remarks
+        ///   The copy covers the region the two sides have in common: each side gives
+        ///   the origin it starts at, and the size is the smaller of the two extents.
+        ///   A zero `width`, `height` or `depth` extends to the rest of that mip.
+        /// 
+        ///   Blit is performed on GPU, and it is ordered within the view. In views, all
+        ///   draw commands are executed after blit and compute commands.
+        /// 
         /// @attention Destination texture must be created with `BGFX_TEXTURE_BLIT_DST` flag.
-        /// @attention Availability depends on: `BGFX_CAPS_TEXTURE_BLIT`.
+        /// 
         /// <param name="_id">View id.</param>
-        /// <param name="_dst">Destination texture handle.</param>
-        /// <param name="_dstMip">Destination texture mip level.</param>
-        /// <param name="_dstX">Destination texture X position.</param>
-        /// <param name="_dstY">Destination texture Y position.</param>
-        /// <param name="_dstZ">If texture is 2D this argument should be 0. If destination texture is cube this argument represents destination texture cube face. For 3D texture this argument represents destination texture Z position.</param>
-        /// <param name="_src">Source texture handle.</param>
-        /// <param name="_srcMip">Source texture mip level.</param>
-        /// <param name="_srcX">Source texture X position.</param>
-        /// <param name="_srcY">Source texture Y position.</param>
-        /// <param name="_srcZ">If texture is 2D this argument should be 0. If source texture is cube this argument represents source texture cube face. For 3D texture this argument represents source texture Z position.</param>
-        /// <param name="_width">Width of region.</param>
-        /// <param name="_height">Height of region.</param>
-        /// <param name="_depth">If texture is 3D this argument represents depth of region, otherwise it's unused.</param>
-        pub inline fn blit(self: ?*Encoder, _id: ViewId, _dst: TextureHandle, _dstMip: u8, _dstX: u16, _dstY: u16, _dstZ: u16, _src: TextureHandle, _srcMip: u8, _srcX: u16, _srcY: u16, _srcZ: u16, _width: u16, _height: u16, _depth: u16) void {
-            return bgfx_encoder_blit(self, _id, _dst, _dstMip, _dstX, _dstY, _dstZ, _src, _srcMip, _srcX, _srcY, _srcZ, _width, _height, _depth);
+        /// <param name="_dst">Destination texture region.</param>
+        /// <param name="_src">Source texture region.</param>
+        pub inline fn blit(self: ?*Encoder, _id: ViewId, _dst: [*c]const TextureRegion, _src: [*c]const TextureRegion) void {
+            return bgfx_encoder_blit(self, _id, _dst, _src);
+        }
+        /// Blit buffer region between two buffers.
+        /// 
+        /// @remarks
+        ///   The source region gives the number of bytes copied, and the destination
+        ///   region gives only the offset they land at. A zero `size` copies the rest of
+        ///   the source buffer. `rowPitch` and `slicePitch` are unused.
+        /// 
+        ///   Buffer blit is performed on GPU, and it is ordered within the view, same as
+        ///   texture blit. In views, all draw commands are executed after blit and compute
+        ///   commands.
+        /// 
+        /// @attention Source buffer must be created with one of `BGFX_BUFFER_COMPUTE_*`, or
+        ///   `BGFX_BUFFER_DRAW_INDIRECT` flags.
+        /// @attention Destination buffer must be created with `BGFX_BUFFER_COMPUTE_WRITE`, or
+        ///   `BGFX_BUFFER_DRAW_INDIRECT` flag.
+        /// @attention Source and destination buffer must be different.
+        /// 
+        /// <param name="_id">View id.</param>
+        /// <param name="_dst">Destination buffer region.</param>
+        /// <param name="_src">Source buffer region.</param>
+        pub inline fn blitBuffer(self: ?*Encoder, _id: ViewId, _dst: [*c]const BufferRegion, _src: [*c]const BufferRegion) void {
+            return bgfx_encoder_blit_buffer(self, _id, _dst, _src);
+        }
+        /// Blit texture region into buffer.
+        /// 
+        /// @remarks
+        ///   The texture region gives the size of the copy. `BufferRegion::rowPitch` and
+        ///   `slicePitch` choose how the texels are laid out in the buffer, and 0 packs
+        ///   them tightly. `BufferRegion::init` fills in the layout the backend copies
+        ///   fastest, and bgfx repacks internally for any other layout.
+        /// 
+        ///   Blit is performed on GPU, and it is ordered within the view, same as texture
+        ///   blit. In views, all draw commands are executed after blit and compute commands.
+        /// 
+        /// @attention Destination buffer must be created with `BGFX_BUFFER_COMPUTE_WRITE`, or
+        ///   `BGFX_BUFFER_DRAW_INDIRECT` flag.
+        /// 
+        /// <param name="_id">View id.</param>
+        /// <param name="_dst">Destination buffer region.</param>
+        /// <param name="_src">Source texture region.</param>
+        pub inline fn blitToBuffer(self: ?*Encoder, _id: ViewId, _dst: [*c]const BufferRegion, _src: [*c]const TextureRegion) void {
+            return bgfx_encoder_blit_to_buffer(self, _id, _dst, _src);
+        }
+        /// Blit buffer contents into texture region.
+        /// 
+        /// @remarks
+        ///   The texture region gives the size of the copy. `BufferRegion::rowPitch` and
+        ///   `slicePitch` describe how the texels are laid out in the buffer, and 0 reads
+        ///   them tightly packed. `BufferRegion::init` fills in the layout the backend
+        ///   copies fastest, and bgfx repacks internally for any other layout.
+        /// 
+        ///   Blit is performed on GPU, and it is ordered within the view, same as texture
+        ///   blit. In views, all draw commands are executed after blit and compute commands.
+        /// 
+        /// @attention Source buffer must be created with one of `BGFX_BUFFER_COMPUTE_*`, or
+        ///   `BGFX_BUFFER_DRAW_INDIRECT` flags.
+        /// @attention Destination texture must be created with `BGFX_TEXTURE_BLIT_DST` flag.
+        /// 
+        /// <param name="_id">View id.</param>
+        /// <param name="_dst">Destination texture region.</param>
+        /// <param name="_src">Source buffer region.</param>
+        pub inline fn blitFromBuffer(self: ?*Encoder, _id: ViewId, _dst: [*c]const TextureRegion, _src: [*c]const BufferRegion) void {
+            return bgfx_encoder_blit_from_buffer(self, _id, _dst, _src);
         }
     };
 
@@ -1923,6 +2509,35 @@ pub const VertexLayoutHandle = extern struct {
     idx: c_ushort,
 };
 
+pub const BufferHandle = extern struct {
+    idx: c_ushort,
+    type: c_ushort,
+};
+
+
+/// Fill in the region of a plain 2D texture. `mip`, `z` and `depth` are left
+/// at zero, which addresses mip 0 of the only slice a 2D texture has.
+/// <param name="_handle">Texture handle.</param>
+/// <param name="_x">X position of the region.</param>
+/// <param name="_y">Y position of the region.</param>
+/// <param name="_width">Width of the region. 0 uses the rest of the mip from `_x`.</param>
+/// <param name="_height">Height of the region. 0 uses the rest of the mip from `_y`.</param>
+extern fn bgfx_texture_region_init(self: [*c]TextureRegion, _handle: TextureHandle, _x: u16, _y: u16, _width: u16, _height: u16) void;
+
+/// Fill `rowPitch`, `slicePitch` and `size` with the layout the backend copies
+/// fastest for `_texture`, and round `offset` up to `Caps::Limits::blitOffsetAlign`.
+/// `handle` is left untouched, so `size` can be used to create the buffer the
+/// region will point at.
+/// <param name="_texture">Texture region the buffer is copied to or from.</param>
+extern fn bgfx_buffer_region_init_texture(self: [*c]BufferRegion, _texture: [*c]const TextureRegion) void;
+
+/// Fill in the region a blit between two buffers copies. `rowPitch` and
+/// `slicePitch` are left at zero, since neither end of such a blit is a
+/// texture.
+/// <param name="_handle">Buffer handle.</param>
+/// <param name="_offset">Byte offset into the buffer.</param>
+/// <param name="_size">Number of bytes. 0 uses the rest of the buffer.</param>
+extern fn bgfx_buffer_region_init_buffer(self: [*c]BufferRegion, _handle: BufferHandle, _offset: u32, _size: u32) void;
 
 /// Init attachment.
 /// <param name="_handle">Render target texture handle.</param>
@@ -1930,15 +2545,17 @@ pub const VertexLayoutHandle = extern struct {
 /// <param name="_layer">Cubemap side or depth layer/slice to use.</param>
 /// <param name="_numLayers">Number of texture layer/slice(s) in array to use.</param>
 /// <param name="_mip">Mip level.</param>
-/// <param name="_resolve">Resolve flags. See: `BGFX_RESOLVE_*`</param>
-extern fn bgfx_attachment_init(self: [*c]Attachment, _handle: TextureHandle, _access: Access, _layer: u16, _numLayers: u16, _mip: u16, _resolve: u8) void;
+/// <param name="_flags">Attachment flags. See: `BGFX_ATTACHMENT_*`</param>
+extern fn bgfx_attachment_init(self: [*c]Attachment, _handle: TextureHandle, _access: Access, _layer: u16, _numLayers: u16, _mip: u16, _flags: u8) void;
 
 /// Start VertexLayout.
 /// <param name="_rendererType">Renderer backend type. See: `bgfx::RendererType`</param>
 extern fn bgfx_vertex_layout_begin(self: [*c]VertexLayout, _rendererType: RendererType) [*c]VertexLayout;
 
 /// Add attribute to VertexLayout.
+/// 
 /// @remarks Must be called between begin/end.
+/// 
 /// <param name="_attrib">Attribute semantics. See: `bgfx::Attrib`</param>
 /// <param name="_num">Number of elements 1, 2, 3 or 4.</param>
 /// <param name="_type">Element type.</param>
@@ -1994,18 +2611,6 @@ pub inline fn vertexConvert(_dstLayout: [*c]const VertexLayout, _dstData: ?*anyo
     return bgfx_vertex_convert(_dstLayout, _dstData, _srcLayout, _srcData, _num);
 }
 extern fn bgfx_vertex_convert(_dstLayout: [*c]const VertexLayout, _dstData: ?*anyopaque, _srcLayout: [*c]const VertexLayout, _srcData: ?*const anyopaque, _num: u32) void;
-
-/// Weld vertices.
-/// <param name="_output">Welded vertices remapping table. The size of buffer must be the same as number of vertices.</param>
-/// <param name="_layout">Vertex stream layout.</param>
-/// <param name="_data">Vertex stream.</param>
-/// <param name="_num">Number of vertices in vertex stream.</param>
-/// <param name="_index32">Set to `true` if input indices are 32-bit.</param>
-/// <param name="_epsilon">Error tolerance for vertex position comparison.</param>
-pub inline fn weldVertices(_output: ?*anyopaque, _layout: [*c]const VertexLayout, _data: ?*const anyopaque, _num: u32, _index32: bool, _epsilon: f32) u32 {
-    return bgfx_weld_vertices(_output, _layout, _data, _num, _index32, _epsilon);
-}
-extern fn bgfx_weld_vertices(_output: ?*anyopaque, _layout: [*c]const VertexLayout, _data: ?*const anyopaque, _num: u32, _index32: bool, _epsilon: f32) u32;
 
 /// Convert index buffer for use with different primitive topologies.
 /// <param name="_conversion">Conversion type, see `TopologyConvert::Enum`.</param>
@@ -2071,44 +2676,71 @@ pub inline fn shutdown() void {
 extern fn bgfx_shutdown() void;
 
 /// Reset graphic settings and back-buffer size.
+/// 
 /// @attention This call doesn’t change the window size, it just resizes
 ///   the back-buffer. Your windowing code controls the window size.
-/// <param name="_width">Back-buffer width.</param>
-/// <param name="_height">Back-buffer height.</param>
-/// <param name="_flags">See: `BGFX_RESET_*` for more info.   - `BGFX_RESET_NONE` - No reset flags.   - `BGFX_RESET_FULLSCREEN` - Not supported yet.   - `BGFX_RESET_MSAA_X[2/4/8/16]` - Enable 2, 4, 8 or 16 x MSAA.   - `BGFX_RESET_VSYNC` - Enable V-Sync.   - `BGFX_RESET_MAXANISOTROPY` - Turn on/off max anisotropy.   - `BGFX_RESET_CAPTURE` - Begin screen capture.   - `BGFX_RESET_FLUSH_AFTER_RENDER` - Flush rendering after submitting to GPU.   - `BGFX_RESET_FLIP_AFTER_RENDER` - This flag  specifies where flip     occurs. Default behaviour is that flip occurs before rendering new     frame. This flag only has effect when `BGFX_CONFIG_MULTITHREADED=0`.   - `BGFX_RESET_SRGB_BACKBUFFER` - Enable sRGB back-buffer.</param>
-/// <param name="_format">Texture format. See: `TextureFormat::Enum`.</param>
-pub inline fn reset(_width: u32, _height: u32, _flags: u32, _format: TextureFormat) void {
-    return bgfx_reset(_width, _height, _flags, _format);
+/// 
+/// <param name="_flags">See: `BGFX_RESET_*` for more info.   - `BGFX_RESET_NONE` - No reset flags.   - `BGFX_RESET_VSYNC` - Enable V-Sync.   - `BGFX_RESET_MAXANISOTROPY` - Turn on/off max anisotropy.   - `BGFX_RESET_CAPTURE` - Begin screen capture.   - `BGFX_RESET_FLUSH_AFTER_RENDER` - Flush rendering after submitting to GPU.   - `BGFX_RESET_FLIP_AFTER_RENDER` - This flag  specifies where flip     occurs. Default behaviour is that flip occurs before rendering new     frame. This flag only has effect when `BGFX_CONFIG_MULTITHREADED=0`.   - `BGFX_RESET_LOW_LATENCY_ON` - Enable low latency mode (NVIDIA Reflex).     Availability depends on: `BGFX_CAPS_LOW_LATENCY`.   - `BGFX_RESET_LOW_LATENCY_BOOST` - Enable low latency mode, and keep GPU     clocks high even when GPU is mostly idle. Availability depends on:     `BGFX_CAPS_LOW_LATENCY`. Set either `BGFX_RESET_LOW_LATENCY_ON` or     `BGFX_RESET_LOW_LATENCY_BOOST`, not both. Per-surface settings are not here. `BGFX_SWAP_CHAIN_*` flags belong on `SwapChain::flags`, and are ignored if passed here.</param>
+/// <param name="_swapChain">Main window swap chain. When `NULL` the main window is left untouched and only the device and frame globals above are applied, which is what an application driving its own swap chains wants. Otherwise the main window takes on this description: resize it, change its format, or change its per-surface flags. Fields left neutral keep their current value. A new `nwh` moves the main window to another native window: the renderer recreates the main swap chain for it and keeps the device, context and every GPU resource. `ndt` must stay what `bgfx::init` received. Must be `NULL` when `bgfx::init` created no main window.</param>
+pub inline fn reset(_flags: u32, _swapChain: [*c]const SwapChain) void {
+    return bgfx_reset(_flags, _swapChain);
 }
-extern fn bgfx_reset(_width: u32, _height: u32, _flags: u32, _format: TextureFormat) void;
+extern fn bgfx_reset(_flags: u32, _swapChain: [*c]const SwapChain) void;
 
-/// Advance to next frame. When using multithreaded renderer, this call
-/// just swaps internal buffers, kicks render thread, and returns. In
-/// singlethreaded renderer this call does frame rendering.
-/// <param name="_capture">Capture frame with graphics debugger.</param>
-pub inline fn frame(_capture: bool) u32 {
-    return bgfx_frame(_capture);
+/// Advance to next frame. This is the main frame-advancement call on the
+/// API thread (the thread from which `bgfx::init` was called).
+/// 
+/// **Multithreaded renderer** (`BGFX_CONFIG_MULTITHREADED=1`, default):
+/// This call waits for the render thread to finish processing the previous
+/// frame, then swaps internal submit/render buffers, signals the render
+/// thread to begin processing the new frame via `bgfx::renderFrame`, and
+/// returns immediately. The render thread and API thread then run in
+/// parallel: the API thread builds the next frame while the render thread
+/// executes GPU commands for the current frame.
+/// 
+/// **Single-threaded renderer** (`BGFX_CONFIG_MULTITHREADED=0`, or when
+/// `bgfx::renderFrame` and `bgfx::init` are called from the same thread):
+/// This call swaps internal buffers and performs frame rendering inline
+/// (internally calls `bgfx::renderFrame`), then returns.
+/// 
+/// @remarks
+///   Must be called from the API thread (the thread that called
+///   `bgfx::init`). In multithreaded mode, this call synchronizes with
+///   `bgfx::renderFrame` running on the render thread via semaphores:
+///   `bgfx::frame` waits for the render thread to finish, then posts a
+///   signal that `bgfx::renderFrame` waits on to begin the next frame.
+///   See also: `bgfx::renderFrame`.
+/// 
+/// <param name="_flags">Frame flags. See: `BGFX_FRAME_*` for more info.   - `BGFX_FRAME_NONE` - No frame flag.   - `BGFX_FRAME_DEBUG_CAPTURE` - Capture frame with graphics debugger.   - `BGFX_FRAME_DISCARD` - Discard all draw calls.   - `BGFX_FRAME_FLUSH` - Execute all rendering commands     without presenting the backbuffer.</param>
+pub inline fn frame(_flags: u8) u32 {
+    return bgfx_frame(_flags);
 }
-extern fn bgfx_frame(_capture: bool) u32;
+extern fn bgfx_frame(_flags: u8) u32;
 
 /// Returns current renderer backend API type.
+/// 
 /// @remarks
 ///   Library must be initialized.
+/// 
 pub inline fn getRendererType() RendererType {
     return bgfx_get_renderer_type();
 }
 extern fn bgfx_get_renderer_type() RendererType;
 
 /// Returns renderer capabilities.
+/// 
 /// @remarks
 ///   Library must be initialized.
+/// 
 pub inline fn getCaps() [*c]const Caps {
     return bgfx_get_caps();
 }
 extern fn bgfx_get_caps() [*c]const Caps;
 
 /// Returns performance counters.
+/// 
 /// @attention Pointer returned is valid until `bgfx::frame` is called.
+/// 
 pub inline fn getStats() [*c]const Stats {
     return bgfx_get_stats();
 }
@@ -2135,7 +2767,9 @@ extern fn bgfx_copy(_data: ?*const anyopaque, _size: u32) [*c]const Memory;
 /// consumed, otherwise you must make sure _data is available for at least 2
 /// `bgfx::frame` calls. `ReleaseFn` function must be able to be called
 /// from any thread.
+/// 
 /// @attention Data passed must be available for at least 2 `bgfx::frame` calls.
+/// 
 /// <param name="_data">Pointer to data.</param>
 /// <param name="_size">Size of data.</param>
 pub inline fn makeRef(_data: ?*const anyopaque, _size: u32) [*c]const Memory {
@@ -2149,7 +2783,9 @@ extern fn bgfx_make_ref(_data: ?*const anyopaque, _size: u32) [*c]const Memory;
 /// consumed, otherwise you must make sure _data is available for at least 2
 /// `bgfx::frame` calls. `ReleaseFn` function must be able to be called
 /// from any thread.
+/// 
 /// @attention Data passed must be available for at least 2 `bgfx::frame` calls.
+/// 
 /// <param name="_data">Pointer to data.</param>
 /// <param name="_size">Size of data.</param>
 /// <param name="_releaseFn">Callback function to release memory after use.</param>
@@ -2161,10 +2797,12 @@ extern fn bgfx_make_ref_release(_data: ?*const anyopaque, _size: u32, _releaseFn
 
 /// Set debug flags.
 /// <param name="_debug">Available flags:   - `BGFX_DEBUG_IFH` - Infinitely fast hardware. When this flag is set     all rendering calls will be skipped. This is useful when profiling     to quickly assess potential bottlenecks between CPU and GPU.   - `BGFX_DEBUG_PROFILER` - Enable profiler.   - `BGFX_DEBUG_STATS` - Display internal statistics.   - `BGFX_DEBUG_TEXT` - Display debug text.   - `BGFX_DEBUG_WIREFRAME` - Wireframe rendering. All rendering     primitives will be rendered as lines.</param>
-pub inline fn setDebug(_debug: u32) void {
-    return bgfx_set_debug(_debug);
+/// <param name="_handle">Frame buffer the debug text and statistics are drawn on. Invalid handle selects the window bgfx was initialized with.</param>
+/// <param name="_scale">Debug text scale factor. 0 is the same as 1.</param>
+pub inline fn setDebug(_debug: u32, _handle: FrameBufferHandle, _scale: u8) void {
+    return bgfx_set_debug(_debug, _handle, _scale);
 }
-extern fn bgfx_set_debug(_debug: u32) void;
+extern fn bgfx_set_debug(_debug: u32, _handle: FrameBufferHandle, _scale: u8) void;
 
 /// Clear internal debug text buffer.
 /// <param name="_attr">Background color.</param>
@@ -2194,6 +2832,27 @@ pub inline fn createIndexBuffer(_mem: [*c]const Memory, _flags: u16) IndexBuffer
 }
 extern fn bgfx_create_index_buffer(_mem: [*c]const Memory, _flags: u16) IndexBufferHandle;
 
+/// Read back contents of buffer.
+/// 
+/// @remarks
+///   Read back is asynchronous, and the result is available at the returned frame.
+///   A zero `size` reads the rest of the buffer. `rowPitch` and `slicePitch` are
+///   unused.
+/// 
+///   Read back is intended for reading GPU written (compute, or draw indirect) buffers
+///   back to the CPU. It's not intended to be used in the main render loop, since it
+///   stalls the GPU.
+/// 
+/// @attention Buffer must be created with one of `BGFX_BUFFER_COMPUTE_*`, or
+///   `BGFX_BUFFER_DRAW_INDIRECT` flags.
+/// 
+/// <param name="_src">Source buffer region.</param>
+/// <param name="_data">Destination buffer.</param>
+pub inline fn readBuffer(_src: [*c]const BufferRegion, _data: ?*anyopaque) u32 {
+    return bgfx_read_buffer(_src, _data);
+}
+extern fn bgfx_read_buffer(_src: [*c]const BufferRegion, _data: ?*anyopaque) u32;
+
 /// Set static index buffer debug name.
 /// <param name="_handle">Static index buffer handle.</param>
 /// <param name="_name">Static index buffer name.</param>
@@ -2210,7 +2869,7 @@ pub inline fn destroyIndexBuffer(_handle: IndexBufferHandle) void {
 }
 extern fn bgfx_destroy_index_buffer(_handle: IndexBufferHandle) void;
 
-/// Create vertex layout.
+/// Create vertex layout. Vertex layouts are used to describe the format of vertex data.
 /// <param name="_layout">Vertex layout.</param>
 pub inline fn createVertexLayout(_layout: [*c]const VertexLayout) VertexLayoutHandle {
     return bgfx_create_vertex_layout(_layout);
@@ -2340,6 +2999,7 @@ pub inline fn getAvailInstanceDataBuffer(_num: u32, _stride: u16) u32 {
 extern fn bgfx_get_avail_instance_data_buffer(_num: u32, _stride: u16) u32;
 
 /// Allocate transient index buffer.
+/// 
 /// <param name="_tib">TransientIndexBuffer structure will be filled, and will be valid for the duration of frame, and can be reused for multiple draw calls.</param>
 /// <param name="_num">Number of indices to allocate.</param>
 /// <param name="_index32">Set to `true` if input indices will be 32-bit.</param>
@@ -2360,6 +3020,7 @@ extern fn bgfx_alloc_transient_vertex_buffer(_tvb: [*c]TransientVertexBuffer, _n
 /// Check for required space and allocate transient vertex and index
 /// buffers. If both space requirements are satisfied function returns
 /// true.
+/// 
 /// <param name="_tvb">TransientVertexBuffer structure will be filled, and will be valid for the duration of frame, and can be reused for multiple draw calls.</param>
 /// <param name="_layout">Vertex layout.</param>
 /// <param name="_numVertices">Number of vertices to allocate.</param>
@@ -2395,8 +3056,10 @@ pub inline fn destroyIndirectBuffer(_handle: IndirectBufferHandle) void {
 extern fn bgfx_destroy_indirect_buffer(_handle: IndirectBufferHandle) void;
 
 /// Create shader from memory buffer.
+/// 
 /// @remarks
 ///   Shader binary is obtained by compiling shader offline with shaderc command line tool.
+/// 
 /// <param name="_mem">Shader binary.</param>
 pub inline fn createShader(_mem: [*c]const Memory) ShaderHandle {
     return bgfx_create_shader(_mem);
@@ -2404,8 +3067,10 @@ pub inline fn createShader(_mem: [*c]const Memory) ShaderHandle {
 extern fn bgfx_create_shader(_mem: [*c]const Memory) ShaderHandle;
 
 /// Returns the number of uniforms and uniform handles used inside a shader.
+/// 
 /// @remarks
 ///   Only non-predefined uniforms are returned.
+/// 
 /// <param name="_handle">Shader handle.</param>
 /// <param name="_uniforms">UniformHandle array where data will be stored.</param>
 /// <param name="_max">Maximum capacity of array.</param>
@@ -2424,8 +3089,10 @@ pub inline fn setShaderName(_handle: ShaderHandle, _name: [*c]const u8, _len: i3
 extern fn bgfx_set_shader_name(_handle: ShaderHandle, _name: [*c]const u8, _len: i32) void;
 
 /// Destroy shader.
+/// 
 /// @remark Once a shader program is created with _handle,
 ///   it is safe to destroy that shader.
+/// 
 /// <param name="_handle">Shader handle.</param>
 pub inline fn destroyShader(_handle: ShaderHandle) void {
     return bgfx_destroy_shader(_handle);
@@ -2467,6 +3134,22 @@ pub inline fn isTextureValid(_depth: u16, _cubeMap: bool, _numLayers: u16, _form
 }
 extern fn bgfx_is_texture_valid(_depth: u16, _cubeMap: bool, _numLayers: u16, _format: TextureFormat, _flags: u64) bool;
 
+/// Validate video codec parameters. Use to check whether the requested
+/// combination of codec / bit depth / chroma / dimensions / DPB layout can
+/// be hardware decoded on the current device. Coarse capability discovery
+/// is `Caps::supported & BGFX_CAPS_VIDEO_DECODE` and `Caps::codecs[]`.
+/// <param name="_codec">Video codec. See: `VideoCodec::Enum`.</param>
+/// <param name="_chroma">Chroma subsampling. 0 = 4:2:0, 2 = 4:2:2, 4 = 4:4:4.</param>
+/// <param name="_bitDepth">Bit depth per component. 8, 10 or 12.</param>
+/// <param name="_codedWidth">Coded picture width (macroblock / CTU / superblock aligned).</param>
+/// <param name="_codedHeight">Coded picture height.</param>
+/// <param name="_maxDpbSlots">Maximum decoded picture buffer slot count.</param>
+/// <param name="_maxActiveReferences">Maximum number of reference frames active at once.</param>
+pub inline fn isVideoCodecValid(_codec: VideoCodec, _chroma: u8, _bitDepth: u8, _codedWidth: u16, _codedHeight: u16, _maxDpbSlots: u8, _maxActiveReferences: u8) bool {
+    return bgfx_is_video_codec_valid(_codec, _chroma, _bitDepth, _codedWidth, _codedHeight, _maxDpbSlots, _maxActiveReferences);
+}
+extern fn bgfx_is_video_codec_valid(_codec: VideoCodec, _chroma: u8, _bitDepth: u8, _codedWidth: u16, _codedHeight: u16, _maxDpbSlots: u8, _maxActiveReferences: u8) bool;
+
 /// Validate frame buffer parameters.
 /// <param name="_num">Number of attachments.</param>
 /// <param name="_attachment">Attachment texture info. See: `bgfx::Attachment`.</param>
@@ -2502,21 +3185,22 @@ extern fn bgfx_create_texture(_mem: [*c]const Memory, _flags: u64, _skip: u8, _i
 /// Create 2D texture.
 /// <param name="_width">Width.</param>
 /// <param name="_height">Height.</param>
-/// <param name="_hasMips">Indicates that texture contains full mip-map chain.</param>
-/// <param name="_numLayers">Number of layers in texture array. Must be 1 if caps `BGFX_CAPS_TEXTURE_2D_ARRAY` flag is not set.</param>
+/// <param name="_hasMips">Indicates that texture contains full mip-map chain. Ignored when `BGFX_TEXTURE_MIP_COUNT` is set in _flags.</param>
+/// <param name="_numLayers">Number of layers in texture array.</param>
 /// <param name="_format">Texture format. See: `TextureFormat::Enum`.</param>
 /// <param name="_flags">Texture creation (see `BGFX_TEXTURE_*`.), and sampler (see `BGFX_SAMPLER_*`) flags. Default texture sampling mode is linear, and wrap mode is repeat. - `BGFX_SAMPLER_[U/V/W]_[MIRROR/CLAMP]` - Mirror or clamp to edge wrap   mode. - `BGFX_SAMPLER_[MIN/MAG/MIP]_[POINT/ANISOTROPIC]` - Point or anisotropic   sampling.</param>
 /// <param name="_mem">Texture data. If `_mem` is non-NULL, created texture will be immutable. If `_mem` is NULL content of the texture is uninitialized. When `_numLayers` is more than 1, expected memory layout is texture and all mips together for each array element.</param>
-pub inline fn createTexture2D(_width: u16, _height: u16, _hasMips: bool, _numLayers: u16, _format: TextureFormat, _flags: u64, _mem: [*c]const Memory) TextureHandle {
-    return bgfx_create_texture_2d(_width, _height, _hasMips, _numLayers, _format, _flags, _mem);
+/// <param name="_external">Native API pointer to texture.</param>
+pub inline fn createTexture2D(_width: u16, _height: u16, _hasMips: bool, _numLayers: u16, _format: TextureFormat, _flags: u64, _mem: [*c]const Memory, _external: u64) TextureHandle {
+    return bgfx_create_texture_2d(_width, _height, _hasMips, _numLayers, _format, _flags, _mem, _external);
 }
-extern fn bgfx_create_texture_2d(_width: u16, _height: u16, _hasMips: bool, _numLayers: u16, _format: TextureFormat, _flags: u64, _mem: [*c]const Memory) TextureHandle;
+extern fn bgfx_create_texture_2d(_width: u16, _height: u16, _hasMips: bool, _numLayers: u16, _format: TextureFormat, _flags: u64, _mem: [*c]const Memory, _external: u64) TextureHandle;
 
 /// Create texture with size based on back-buffer ratio. Texture will maintain ratio
 /// if back buffer resolution changes.
 /// <param name="_ratio">Texture size in respect to back-buffer size. See: `BackbufferRatio::Enum`.</param>
-/// <param name="_hasMips">Indicates that texture contains full mip-map chain.</param>
-/// <param name="_numLayers">Number of layers in texture array. Must be 1 if caps `BGFX_CAPS_TEXTURE_2D_ARRAY` flag is not set.</param>
+/// <param name="_hasMips">Indicates that texture contains full mip-map chain. Ignored when `BGFX_TEXTURE_MIP_COUNT` is set in _flags.</param>
+/// <param name="_numLayers">Number of layers in texture array.</param>
 /// <param name="_format">Texture format. See: `TextureFormat::Enum`.</param>
 /// <param name="_flags">Texture creation (see `BGFX_TEXTURE_*`.), and sampler (see `BGFX_SAMPLER_*`) flags. Default texture sampling mode is linear, and wrap mode is repeat. - `BGFX_SAMPLER_[U/V/W]_[MIRROR/CLAMP]` - Mirror or clamp to edge wrap   mode. - `BGFX_SAMPLER_[MIN/MAG/MIP]_[POINT/ANISOTROPIC]` - Point or anisotropic   sampling.</param>
 pub inline fn createTexture2DScaled(_ratio: BackbufferRatio, _hasMips: bool, _numLayers: u16, _format: TextureFormat, _flags: u64) TextureHandle {
@@ -2528,29 +3212,33 @@ extern fn bgfx_create_texture_2d_scaled(_ratio: BackbufferRatio, _hasMips: bool,
 /// <param name="_width">Width.</param>
 /// <param name="_height">Height.</param>
 /// <param name="_depth">Depth.</param>
-/// <param name="_hasMips">Indicates that texture contains full mip-map chain.</param>
+/// <param name="_hasMips">Indicates that texture contains full mip-map chain. Ignored when `BGFX_TEXTURE_MIP_COUNT` is set in _flags.</param>
 /// <param name="_format">Texture format. See: `TextureFormat::Enum`.</param>
 /// <param name="_flags">Texture creation (see `BGFX_TEXTURE_*`.), and sampler (see `BGFX_SAMPLER_*`) flags. Default texture sampling mode is linear, and wrap mode is repeat. - `BGFX_SAMPLER_[U/V/W]_[MIRROR/CLAMP]` - Mirror or clamp to edge wrap   mode. - `BGFX_SAMPLER_[MIN/MAG/MIP]_[POINT/ANISOTROPIC]` - Point or anisotropic   sampling.</param>
 /// <param name="_mem">Texture data. If `_mem` is non-NULL, created texture will be immutable. If `_mem` is NULL content of the texture is uninitialized. When `_numLayers` is more than 1, expected memory layout is texture and all mips together for each array element.</param>
-pub inline fn createTexture3D(_width: u16, _height: u16, _depth: u16, _hasMips: bool, _format: TextureFormat, _flags: u64, _mem: [*c]const Memory) TextureHandle {
-    return bgfx_create_texture_3d(_width, _height, _depth, _hasMips, _format, _flags, _mem);
+/// <param name="_external">Native API pointer to texture.</param>
+pub inline fn createTexture3D(_width: u16, _height: u16, _depth: u16, _hasMips: bool, _format: TextureFormat, _flags: u64, _mem: [*c]const Memory, _external: u64) TextureHandle {
+    return bgfx_create_texture_3d(_width, _height, _depth, _hasMips, _format, _flags, _mem, _external);
 }
-extern fn bgfx_create_texture_3d(_width: u16, _height: u16, _depth: u16, _hasMips: bool, _format: TextureFormat, _flags: u64, _mem: [*c]const Memory) TextureHandle;
+extern fn bgfx_create_texture_3d(_width: u16, _height: u16, _depth: u16, _hasMips: bool, _format: TextureFormat, _flags: u64, _mem: [*c]const Memory, _external: u64) TextureHandle;
 
 /// Create Cube texture.
 /// <param name="_size">Cube side size.</param>
-/// <param name="_hasMips">Indicates that texture contains full mip-map chain.</param>
-/// <param name="_numLayers">Number of layers in texture array. Must be 1 if caps `BGFX_CAPS_TEXTURE_2D_ARRAY` flag is not set.</param>
+/// <param name="_hasMips">Indicates that texture contains full mip-map chain. Ignored when `BGFX_TEXTURE_MIP_COUNT` is set in _flags.</param>
+/// <param name="_numLayers">Number of layers in texture array.</param>
 /// <param name="_format">Texture format. See: `TextureFormat::Enum`.</param>
 /// <param name="_flags">Texture creation (see `BGFX_TEXTURE_*`.), and sampler (see `BGFX_SAMPLER_*`) flags. Default texture sampling mode is linear, and wrap mode is repeat. - `BGFX_SAMPLER_[U/V/W]_[MIRROR/CLAMP]` - Mirror or clamp to edge wrap   mode. - `BGFX_SAMPLER_[MIN/MAG/MIP]_[POINT/ANISOTROPIC]` - Point or anisotropic   sampling.</param>
-/// <param name="_mem">Texture data. If `_mem` is non-NULL, created texture will be immutable. If `_mem` is NULL content of the texture is uninitialized. When `_numLayers` is more than 1, expected memory layout is texture and all mips together for each array element.</param>
-pub inline fn createTextureCube(_size: u16, _hasMips: bool, _numLayers: u16, _format: TextureFormat, _flags: u64, _mem: [*c]const Memory) TextureHandle {
-    return bgfx_create_texture_cube(_size, _hasMips, _numLayers, _format, _flags, _mem);
+/// <param name="_mem">Texture data. If `_mem` is non-NULL, created texture will be immutable. If `_mem` is NULL content of the texture is uninitialized. When `_numLayers` is more than</param>
+/// <param name="_external">Native API pointer to texture.</param>
+pub inline fn createTextureCube(_size: u16, _hasMips: bool, _numLayers: u16, _format: TextureFormat, _flags: u64, _mem: [*c]const Memory, _external: u64) TextureHandle {
+    return bgfx_create_texture_cube(_size, _hasMips, _numLayers, _format, _flags, _mem, _external);
 }
-extern fn bgfx_create_texture_cube(_size: u16, _hasMips: bool, _numLayers: u16, _format: TextureFormat, _flags: u64, _mem: [*c]const Memory) TextureHandle;
+extern fn bgfx_create_texture_cube(_size: u16, _hasMips: bool, _numLayers: u16, _format: TextureFormat, _flags: u64, _mem: [*c]const Memory, _external: u64) TextureHandle;
 
 /// Update 2D texture.
+/// 
 /// @attention It's valid to update only mutable texture. See `bgfx::createTexture2D` for more info.
+/// 
 /// <param name="_handle">Texture handle.</param>
 /// <param name="_layer">Layer in texture array.</param>
 /// <param name="_mip">Mip level.</param>
@@ -2566,7 +3254,9 @@ pub inline fn updateTexture2D(_handle: TextureHandle, _layer: u16, _mip: u8, _x:
 extern fn bgfx_update_texture_2d(_handle: TextureHandle, _layer: u16, _mip: u8, _x: u16, _y: u16, _width: u16, _height: u16, _mem: [*c]const Memory, _pitch: u16) void;
 
 /// Update 3D texture.
+/// 
 /// @attention It's valid to update only mutable texture. See `bgfx::createTexture3D` for more info.
+/// 
 /// <param name="_handle">Texture handle.</param>
 /// <param name="_mip">Mip level.</param>
 /// <param name="_x">X offset in texture.</param>
@@ -2582,7 +3272,9 @@ pub inline fn updateTexture3D(_handle: TextureHandle, _mip: u8, _x: u16, _y: u16
 extern fn bgfx_update_texture_3d(_handle: TextureHandle, _mip: u8, _x: u16, _y: u16, _z: u16, _width: u16, _height: u16, _depth: u16, _mem: [*c]const Memory) void;
 
 /// Update Cube texture.
+/// 
 /// @attention It's valid to update only mutable texture. See `bgfx::createTextureCube` for more info.
+/// 
 /// <param name="_handle">Texture handle.</param>
 /// <param name="_layer">Layer in texture array.</param>
 /// <param name="_side">Cubemap side `BGFX_CUBE_MAP_<POSITIVE or NEGATIVE>_<X, Y or Z>`,   where 0 is +X, 1 is -X, 2 is +Y, 3 is -Y, 4 is +Z, and 5 is -Z.                  +----------+                  |-z       2|                  | ^  +y    |                  | |        |    Unfolded cube:                  | +---->+x |       +----------+----------+----------+----------+       |+y       1|+y       4|+y       0|+y       5|       | ^  -x    | ^  +z    | ^  +x    | ^  -z    |       | |        | |        | |        | |        |       | +---->+z | +---->+x | +---->-z | +---->-x |       +----------+----------+----------+----------+                  |+z       3|                  | ^  -y    |                  | |        |                  | +---->+x |                  +----------+</param>
@@ -2598,16 +3290,38 @@ pub inline fn updateTextureCube(_handle: TextureHandle, _layer: u16, _side: u8, 
 }
 extern fn bgfx_update_texture_cube(_handle: TextureHandle, _layer: u16, _side: u8, _mip: u8, _x: u16, _y: u16, _width: u16, _height: u16, _mem: [*c]const Memory, _pitch: u16) void;
 
-/// Read back texture content.
-/// @attention Texture must be created with `BGFX_TEXTURE_READ_BACK` flag.
-/// @attention Availability depends on: `BGFX_CAPS_TEXTURE_READ_BACK`.
+/// Clear a texture subresource range to zero.
+/// 
 /// <param name="_handle">Texture handle.</param>
-/// <param name="_data">Destination buffer.</param>
-/// <param name="_mip">Mip level.</param>
-pub inline fn readTexture(_handle: TextureHandle, _data: ?*anyopaque, _mip: u8) u32 {
-    return bgfx_read_texture(_handle, _data, _mip);
+/// <param name="_mip">First mip level.</param>
+/// <param name="_numMips">Number of mip levels.</param>
+/// <param name="_layer">First array layer (or 3D depth slice base).</param>
+/// <param name="_numLayers">Number of layers.</param>
+pub inline fn clearTexture(_handle: TextureHandle, _mip: u8, _numMips: u8, _layer: u16, _numLayers: u16) void {
+    return bgfx_clear_texture(_handle, _mip, _numMips, _layer, _numLayers);
 }
-extern fn bgfx_read_texture(_handle: TextureHandle, _data: ?*anyopaque, _mip: u8) u32;
+extern fn bgfx_clear_texture(_handle: TextureHandle, _mip: u8, _numMips: u8, _layer: u16, _numLayers: u16) void;
+
+/// Read back texture content.
+/// 
+/// @remarks
+///   Read back is asynchronous, and the result is available at the returned frame.
+///   `TextureRegion::z` selects cube face, 3D slice, or array layer. The region must
+///   cover the whole mip.
+/// 
+///   Read back is not intended to be used in the main render loop, since it stalls
+///   the GPU.
+/// 
+/// @attention Texture must be created with `BGFX_TEXTURE_READ_BACK` flag.
+///            It's a texture for CPU readback, and can't be a GPU resource
+///            at the same time. See `examples/30-picking`.
+/// 
+/// <param name="_src">Source texture region.</param>
+/// <param name="_data">Destination buffer.</param>
+pub inline fn readTexture(_src: [*c]const TextureRegion, _data: ?*anyopaque) u32 {
+    return bgfx_read_texture(_src, _data);
+}
+extern fn bgfx_read_texture(_src: [*c]const TextureRegion, _data: ?*anyopaque) u32;
 
 /// Set texture debug name.
 /// <param name="_handle">Texture handle.</param>
@@ -2619,8 +3333,10 @@ pub inline fn setTextureName(_handle: TextureHandle, _name: [*c]const u8, _len: 
 extern fn bgfx_set_texture_name(_handle: TextureHandle, _name: [*c]const u8, _len: i32) void;
 
 /// Returns texture direct access pointer.
+/// 
 /// @attention Availability depends on: `BGFX_CAPS_TEXTURE_DIRECT_ACCESS`. This feature
 ///   is available on GPUs that have unified memory architecture (UMA) support.
+/// 
 /// <param name="_handle">Texture handle.</param>
 pub inline fn getDirectAccessPtr(_handle: TextureHandle) ?*anyopaque {
     return bgfx_get_direct_access_ptr(_handle);
@@ -2673,19 +3389,33 @@ pub inline fn createFrameBufferFromAttachment(_num: u8, _attachment: [*c]const A
 }
 extern fn bgfx_create_frame_buffer_from_attachment(_num: u8, _attachment: [*c]const Attachment, _destroyTexture: bool) FrameBufferHandle;
 
-/// Create frame buffer for multiple window rendering.
+/// Create a frame buffer for a window, from a full swap chain description.
+/// 
 /// @remarks
 ///   Frame buffer cannot be used for sampling.
+/// 
 /// @attention Availability depends on: `BGFX_CAPS_SWAP_CHAIN`.
-/// <param name="_nwh">OS' target native window handle.</param>
-/// <param name="_width">Window back buffer width.</param>
-/// <param name="_height">Window back buffer height.</param>
-/// <param name="_format">Window back buffer color format.</param>
-/// <param name="_depthFormat">Window back buffer depth format.</param>
-pub inline fn createFrameBufferFromNwh(_nwh: ?*anyopaque, _width: u16, _height: u16, _format: TextureFormat, _depthFormat: TextureFormat) FrameBufferHandle {
-    return bgfx_create_frame_buffer_from_nwh(_nwh, _width, _height, _format, _depthFormat);
+/// 
+/// <param name="_desc">Swap chain description. See: `bgfx::SwapChain`.</param>
+pub inline fn createFrameBufferFromSwapChain(_desc: [*c]const SwapChain) FrameBufferHandle {
+    return bgfx_create_frame_buffer_from_swap_chain(_desc);
 }
-extern fn bgfx_create_frame_buffer_from_nwh(_nwh: ?*anyopaque, _width: u16, _height: u16, _format: TextureFormat, _depthFormat: TextureFormat) FrameBufferHandle;
+extern fn bgfx_create_frame_buffer_from_swap_chain(_desc: [*c]const SwapChain) FrameBufferHandle;
+
+/// Change a swap chain's size, format or per-surface flags, in place.
+/// 
+/// The frame buffer handle stays valid, so nothing that refers to it has to be
+/// rebuilt. Pass `BGFX_INVALID_HANDLE` to address the window bgfx was
+/// initialized with.
+/// 
+/// @attention Availability depends on: `BGFX_CAPS_SWAP_CHAIN`.
+/// 
+/// <param name="_handle">Window frame buffer handle. The window bgfx was initialized with is not addressed here; it is `bgfx::reset`'s swap chain.</param>
+/// <param name="_desc">Swap chain description. See: `bgfx::SwapChain`.</param>
+pub inline fn updateSwapChain(_handle: FrameBufferHandle, _desc: [*c]const SwapChain) void {
+    return bgfx_update_swap_chain(_handle, _desc);
+}
+extern fn bgfx_update_swap_chain(_handle: FrameBufferHandle, _desc: [*c]const SwapChain) void;
 
 /// Set frame buffer debug name.
 /// <param name="_handle">Frame buffer handle.</param>
@@ -2711,12 +3441,14 @@ pub inline fn destroyFrameBuffer(_handle: FrameBufferHandle) void {
 extern fn bgfx_destroy_frame_buffer(_handle: FrameBufferHandle) void;
 
 /// Create shader uniform parameter.
+/// 
 /// @remarks
 ///   1. Uniform names are unique. It's valid to call `bgfx::createUniform`
 ///      multiple times with the same uniform name. The library will always
 ///      return the same handle, but the handle reference count will be
 ///      incremented. This means that the same number of `bgfx::destroyUniform`
 ///      must be called to properly destroy the uniform.
+/// 
 ///   2. Predefined uniforms (declared in `bgfx_shader.sh`):
 ///      - `u_viewRect vec4(x, y, width, height)` - view rectangle for current
 ///        view, in pixels.
@@ -2734,6 +3466,7 @@ extern fn bgfx_destroy_frame_buffer(_handle: FrameBufferHandle) void;
 ///      - `u_invModelView mat4` - inverted concatenated model view matrix.
 ///      - `u_modelViewProj mat4` - concatenated model view projection matrix.
 ///      - `u_alphaRef float` - alpha reference value for alpha test.
+/// 
 /// <param name="_name">Uniform name in shader.</param>
 /// <param name="_type">Type of uniform (See: `bgfx::UniformType`).</param>
 /// <param name="_num">Number of elements in array.</param>
@@ -2741,6 +3474,42 @@ pub inline fn createUniform(_name: [*c]const u8, _type: UniformType, _num: u16) 
     return bgfx_create_uniform(_name, _type, _num);
 }
 extern fn bgfx_create_uniform(_name: [*c]const u8, _type: UniformType, _num: u16) UniformHandle;
+
+/// Create shader uniform parameter.
+/// 
+/// @remarks
+///   1. Uniform names are unique. It's valid to call `bgfx::createUniform`
+///      multiple times with the same uniform name. The library will always
+///      return the same handle, but the handle reference count will be
+///      incremented. This means that the same number of `bgfx::destroyUniform`
+///      must be called to properly destroy the uniform.
+/// 
+///   2. Predefined uniforms (declared in `bgfx_shader.sh`):
+///      - `u_viewRect vec4(x, y, width, height)` - view rectangle for current
+///        view, in pixels.
+///      - `u_viewTexel vec4(1.0/width, 1.0/height, undef, undef)` - inverse
+///        width and height
+///      - `u_view mat4` - view matrix
+///      - `u_invView mat4` - inverted view matrix
+///      - `u_proj mat4` - projection matrix
+///      - `u_invProj mat4` - inverted projection matrix
+///      - `u_viewProj mat4` - concatenated view projection matrix
+///      - `u_invViewProj mat4` - concatenated inverted view projection matrix
+///      - `u_model mat4[BGFX_CONFIG_MAX_BONES]` - array of model matrices.
+///      - `u_modelView mat4` - concatenated model view matrix, only first
+///        model matrix from array is used.
+///      - `u_invModelView mat4` - inverted concatenated model view matrix.
+///      - `u_modelViewProj mat4` - concatenated model view projection matrix.
+///      - `u_alphaRef float` - alpha reference value for alpha test.
+/// 
+/// <param name="_name">Uniform name in shader.</param>
+/// <param name="_freq">Uniform change frequency (See: `bgfx::UniformFreq`).</param>
+/// <param name="_type">Type of uniform (See: `bgfx::UniformType`).</param>
+/// <param name="_num">Number of elements in array.</param>
+pub inline fn createUniformWithFreq(_name: [*c]const u8, _freq: UniformFreq, _type: UniformType, _num: u16) UniformHandle {
+    return bgfx_create_uniform_with_freq(_name, _freq, _type, _num);
+}
+extern fn bgfx_create_uniform_with_freq(_name: [*c]const u8, _freq: UniformFreq, _type: UniformType, _num: u16) UniformHandle;
 
 /// Retrieve uniform info.
 /// <param name="_handle">Handle to uniform object.</param>
@@ -2757,7 +3526,8 @@ pub inline fn destroyUniform(_handle: UniformHandle) void {
 }
 extern fn bgfx_destroy_uniform(_handle: UniformHandle) void;
 
-/// Create occlusion query.
+/// Create occlusion query. Occlusion queries allow the GPU to determine
+/// if any pixels passed the depth test.
 pub inline fn createOcclusionQuery() OcclusionQueryHandle {
     return bgfx_create_occlusion_query();
 }
@@ -2806,13 +3576,17 @@ pub inline fn setPaletteColorRgba8(_index: u8, _rgba: u32) void {
 extern fn bgfx_set_palette_color_rgba8(_index: u8, _rgba: u32) void;
 
 /// Set view name.
+/// 
 /// @remarks
 ///   This is debug only feature.
+/// 
 ///   In graphics debugger view name will appear as:
-///       "nnnc <view name>"
-///        ^  ^ ^
-///        |  +--- compute (C)
-///        +------ view id
+/// 
+///       "nnnnc <view name>"
+///        ^   ^ ^
+///        |   +--- compute (C)
+///        +------- view id
+/// 
 /// <param name="_id">View id.</param>
 /// <param name="_name">View name.</param>
 /// <param name="_len">View name length (if length is INT32_MAX, it's expected that _name is zero terminated string.</param>
@@ -2823,24 +3597,26 @@ extern fn bgfx_set_view_name(_id: ViewId, _name: [*c]const u8, _len: i32) void;
 
 /// Set view rectangle. Draw primitive outside view will be clipped.
 /// <param name="_id">View id.</param>
-/// <param name="_x">Position x from the left corner of the window.</param>
-/// <param name="_y">Position y from the top corner of the window.</param>
+/// <param name="_x">Position x from the left corner of the window. Can be negative to place view origin outside of the window.</param>
+/// <param name="_y">Position y from the top corner of the window. Can be negative to place view origin outside of the window.</param>
 /// <param name="_width">Width of view port region.</param>
 /// <param name="_height">Height of view port region.</param>
-pub inline fn setViewRect(_id: ViewId, _x: u16, _y: u16, _width: u16, _height: u16) void {
-    return bgfx_set_view_rect(_id, _x, _y, _width, _height);
+/// <param name="_minDepth">Viewport minimum depth (maps clip-space z=0).</param>
+/// <param name="_maxDepth">Viewport maximum depth (maps clip-space z=1).</param>
+pub inline fn setViewRect(_id: ViewId, _x: i16, _y: i16, _width: u16, _height: u16, _minDepth: f32, _maxDepth: f32) void {
+    return bgfx_set_view_rect(_id, _x, _y, _width, _height, _minDepth, _maxDepth);
 }
-extern fn bgfx_set_view_rect(_id: ViewId, _x: u16, _y: u16, _width: u16, _height: u16) void;
+extern fn bgfx_set_view_rect(_id: ViewId, _x: i16, _y: i16, _width: u16, _height: u16, _minDepth: f32, _maxDepth: f32) void;
 
 /// Set view rectangle. Draw primitive outside view will be clipped.
 /// <param name="_id">View id.</param>
-/// <param name="_x">Position x from the left corner of the window.</param>
-/// <param name="_y">Position y from the top corner of the window.</param>
+/// <param name="_x">Position x from the left corner of the window. Can be negative to place view origin outside of the window.</param>
+/// <param name="_y">Position y from the top corner of the window. Can be negative to place view origin outside of the window.</param>
 /// <param name="_ratio">Width and height will be set in respect to back-buffer size. See: `BackbufferRatio::Enum`.</param>
-pub inline fn setViewRectRatio(_id: ViewId, _x: u16, _y: u16, _ratio: BackbufferRatio) void {
+pub inline fn setViewRectRatio(_id: ViewId, _x: i16, _y: i16, _ratio: BackbufferRatio) void {
     return bgfx_set_view_rect_ratio(_id, _x, _y, _ratio);
 }
-extern fn bgfx_set_view_rect_ratio(_id: ViewId, _x: u16, _y: u16, _ratio: BackbufferRatio) void;
+extern fn bgfx_set_view_rect_ratio(_id: ViewId, _x: i16, _y: i16, _ratio: BackbufferRatio) void;
 
 /// Set view scissor. Draw primitive outside view will be clipped. When
 /// _x, _y, _width and _height are set to 0, scissor will be disabled.
@@ -2853,6 +3629,26 @@ pub inline fn setViewScissor(_id: ViewId, _x: u16, _y: u16, _width: u16, _height
     return bgfx_set_view_scissor(_id, _x, _y, _width, _height);
 }
 extern fn bgfx_set_view_scissor(_id: ViewId, _x: u16, _y: u16, _width: u16, _height: u16) void;
+
+/// Set view depth bias. Applies to all draws in the view unless overridden per-draw
+/// with `bgfx::setDepthControl`.
+/// <param name="_id">View id.</param>
+/// <param name="_constant">Constant depth bias.</param>
+/// <param name="_slopeScale">Slope-scaled depth bias.</param>
+/// <param name="_clamp">Depth bias clamp.</param>
+pub inline fn setViewDepthBias(_id: ViewId, _constant: i32, _slopeScale: f32, _clamp: f32) void {
+    return bgfx_set_view_depth_bias(_id, _constant, _slopeScale, _clamp);
+}
+extern fn bgfx_set_view_depth_bias(_id: ViewId, _constant: i32, _slopeScale: f32, _clamp: f32) void;
+
+/// Set view multisample coverage mask. Combined with the per-draw mask set by
+/// `bgfx::setSampleMask`, so a draw can narrow the view's mask but not widen it.
+/// <param name="_id">View id.</param>
+/// <param name="_mask">Sample coverage mask.</param>
+pub inline fn setViewSampleMask(_id: ViewId, _mask: u32) void {
+    return bgfx_set_view_sample_mask(_id, _mask);
+}
+extern fn bgfx_set_view_sample_mask(_id: ViewId, _mask: u32) void;
 
 /// Set view clear flags.
 /// <param name="_id">View id.</param>
@@ -2867,7 +3663,8 @@ extern fn bgfx_set_view_clear(_id: ViewId, _flags: u16, _rgba: u32, _depth: f32,
 
 /// Set view clear flags with different clear color for each
 /// frame buffer texture. `bgfx::setPaletteColor` must be used to set up a
-/// clear color palette.
+/// clear color palette. Frame buffer attachment with palette index set to
+/// `UINT8_MAX` is not cleared.
 /// <param name="_id">View id.</param>
 /// <param name="_flags">Clear flags. Use `BGFX_CLEAR_NONE` to remove any clear operation. See: `BGFX_CLEAR_*`.</param>
 /// <param name="_depth">Depth clear value.</param>
@@ -2886,8 +3683,10 @@ pub inline fn setViewClearMrt(_id: ViewId, _flags: u16, _depth: f32, _stencil: u
 extern fn bgfx_set_view_clear_mrt(_id: ViewId, _flags: u16, _depth: f32, _stencil: u8, _c0: u8, _c1: u8, _c2: u8, _c3: u8, _c4: u8, _c5: u8, _c6: u8, _c7: u8) void;
 
 /// Set view sorting mode.
+/// 
 /// @remarks
 ///   View mode must be set prior calling `bgfx::submit` for the view.
+/// 
 /// <param name="_id">View id.</param>
 /// <param name="_mode">View sort mode. See `ViewMode::Enum`.</param>
 pub inline fn setViewMode(_id: ViewId, _mode: ViewMode) void {
@@ -2896,8 +3695,10 @@ pub inline fn setViewMode(_id: ViewId, _mode: ViewMode) void {
 extern fn bgfx_set_view_mode(_id: ViewId, _mode: ViewMode) void;
 
 /// Set view frame buffer.
+/// 
 /// @remarks
 ///   Not persistent after `bgfx::reset` call.
+/// 
 /// <param name="_id">View id.</param>
 /// <param name="_handle">Frame buffer handle. Passing `BGFX_INVALID_HANDLE` as frame buffer handle will draw primitives from this view into default back buffer.</param>
 pub inline fn setViewFrameBuffer(_id: ViewId, _handle: FrameBufferHandle) void {
@@ -2915,7 +3716,9 @@ pub inline fn setViewTransform(_id: ViewId, _view: ?*const anyopaque, _proj: ?*c
 }
 extern fn bgfx_set_view_transform(_id: ViewId, _view: ?*const anyopaque, _proj: ?*const anyopaque) void;
 
-/// Post submit view reordering.
+/// Post submit view reordering. A view in `_order` that currently renders
+/// outside the remapped range swaps places with the view it displaces, so the
+/// order stays a permutation of all view ids.
 /// <param name="_id">First view id.</param>
 /// <param name="_num">Number of views to remap.</param>
 /// <param name="_order">View remap id table. Passing `NULL` will reset view ids to default state.</param>
@@ -2924,20 +3727,69 @@ pub inline fn setViewOrder(_id: ViewId, _num: u16, _order: [*c]const ViewId) voi
 }
 extern fn bgfx_set_view_order(_id: ViewId, _num: u16, _order: [*c]const ViewId) void;
 
-/// Reset all view settings to default.
+/// Set view shading rate.
+/// 
+/// @attention Availability depends on: `BGFX_CAPS_VARIABLE_RATE_SHADING`.
+/// 
+/// <param name="_id">View id.</param>
+/// <param name="_shadingRate">Shading rate.</param>
+pub inline fn setViewShadingRate(_id: ViewId, _shadingRate: ShadingRate) void {
+    return bgfx_set_view_shading_rate(_id, _shadingRate);
+}
+extern fn bgfx_set_view_shading_rate(_id: ViewId, _shadingRate: ShadingRate) void;
+
+/// Reset all view settings to default, including the view name.
+/// <param name="_id">_id View id.</param>
 pub inline fn resetView(_id: ViewId) void {
     return bgfx_reset_view(_id);
 }
 extern fn bgfx_reset_view(_id: ViewId) void;
 
-/// Begin submitting draw calls from thread.
-/// <param name="_forThread">Explicitly request an encoder for a worker thread.</param>
-pub inline fn encoderBegin(_forThread: bool) ?*Encoder {
-    return bgfx_encoder_begin(_forThread);
+/// Begin submitting draw calls from thread. Obtains an encoder that can be
+/// used to submit draw calls, compute dispatches, and state changes.
+/// 
+/// In multithreaded mode (`BGFX_CONFIG_MULTITHREADED=1`), multiple threads
+/// can each obtain their own encoder and submit draw calls in parallel.
+/// Each encoder writes into its own uniform buffer, so there is no
+/// contention between threads. The maximum number of simultaneous encoders
+/// is configured via `Limits.maxEncoders` in `bgfx::Init` (default: 8).
+/// 
+/// When called from the API thread (the thread that called `bgfx::init`)
+/// with `_forceNewEncoder` set to `false`, the default internal encoder
+/// (encoder 0) is returned. This is the same encoder used by the legacy
+/// non-encoder API (`bgfx::setState`, `bgfx::submit`, etc.). When called
+/// from a worker thread (or with `_forceNewEncoder` set to `true`), a new
+/// encoder is allocated from the encoder pool.
+/// 
+/// @remarks
+///   The returned `Encoder` pointer is valid until `bgfx::end` is called
+///   with it. All encoders must be ended before `bgfx::frame` is called.
+///   If `bgfx::frame` is called while encoders are still active, it will
+///   wait for them to finish. Returns `NULL` if no encoder slots are
+///   available (all `maxEncoders` slots are in use).
+///   See also: `bgfx::end`, `bgfx::frame`.
+/// 
+/// <param name="_forceNewEncoder">Force allocation of a new encoder from the pool, even when called from the API thread.</param>
+pub inline fn encoderBegin(_forceNewEncoder: bool) ?*Encoder {
+    return bgfx_encoder_begin(_forceNewEncoder);
 }
-extern fn bgfx_encoder_begin(_forThread: bool) ?*Encoder;
+extern fn bgfx_encoder_begin(_forceNewEncoder: bool) ?*Encoder;
 
-/// End submitting draw calls from thread.
+/// End submitting draw calls from thread. Returns the encoder obtained from
+/// `bgfx::begin` back to the encoder pool.
+/// 
+/// After this call the `Encoder` pointer is no longer valid and must not
+/// be used. The encoder's recorded draw calls and state changes are finalized
+/// and will be included in the next frame when `bgfx::frame` is called.
+/// 
+/// @remarks
+///   Must be called from the same thread that called `bgfx::begin` for
+///   this encoder. All encoders must be ended before `bgfx::frame` is
+///   called. The default encoder (encoder 0, used by the legacy API) is
+///   managed internally and does not need to be passed to `bgfx::end`;
+///   passing it is harmless but has no effect.
+///   See also: `bgfx::begin`, `bgfx::frame`.
+/// 
 /// <param name="_encoder">Encoder.</param>
 pub inline fn encoderEnd(_encoder: ?*Encoder) void {
     return bgfx_encoder_end(_encoder);
@@ -2951,6 +3803,7 @@ extern fn bgfx_encoder_end(_encoder: ?*Encoder) void;
 extern fn bgfx_encoder_set_marker(self: ?*Encoder, _name: [*c]const u8, _len: i32) void;
 
 /// Set render states for draw primitive.
+/// 
 /// @remarks
 ///   1. To set up more complex states use:
 ///      `BGFX_STATE_ALPHA_REF(_ref)`,
@@ -2961,6 +3814,7 @@ extern fn bgfx_encoder_set_marker(self: ?*Encoder, _name: [*c]const u8, _len: i3
 ///      `BGFX_STATE_BLEND_EQUATION_SEPARATE(_equationRGB, _equationA)`
 ///   2. `BGFX_STATE_BLEND_EQUATION_ADD` is set when no other blend
 ///      equation is specified.
+/// 
 /// <param name="_state">State flags. Default state for primitive type is   triangles. See: `BGFX_STATE_DEFAULT`.   - `BGFX_STATE_DEPTH_TEST_*` - Depth test function.   - `BGFX_STATE_BLEND_*` - See remark 1 about BGFX_STATE_BLEND_FUNC.   - `BGFX_STATE_BLEND_EQUATION_*` - See remark 2.   - `BGFX_STATE_CULL_*` - Backface culling mode.   - `BGFX_STATE_WRITE_*` - Enable R, G, B, A or Z write.   - `BGFX_STATE_MSAA` - Enable hardware multisample antialiasing.   - `BGFX_STATE_PT_[TRISTRIP/LINES/POINTS]` - Primitive type.</param>
 /// <param name="_rgba">Sets blend factor used by `BGFX_STATE_BLEND_FACTOR` and   `BGFX_STATE_BLEND_INV_FACTOR` blend modes.</param>
 extern fn bgfx_encoder_set_state(self: ?*Encoder, _state: u64, _rgba: u32) void;
@@ -2975,9 +3829,17 @@ extern fn bgfx_encoder_set_condition(self: ?*Encoder, _handle: OcclusionQueryHan
 /// <param name="_bstencil">Back stencil state. If back is set to `BGFX_STENCIL_NONE` _fstencil is applied to both front and back facing primitives.</param>
 extern fn bgfx_encoder_set_stencil(self: ?*Encoder, _fstencil: u32, _bstencil: u32) void;
 
+/// Set multisample coverage mask for draw primitive. Samples whose bit is clear
+/// in the mask are never written, regardless of the coverage the rasterizer
+/// computes. Only has an effect when rendering to a multisampled target.
+/// <param name="_mask">Sample coverage mask.</param>
+extern fn bgfx_encoder_set_sample_mask(self: ?*Encoder, _mask: u32) void;
+
 /// Set scissor for draw primitive.
+/// 
 /// @remark
 ///   To scissor for all primitives in view see `bgfx::setViewScissor`.
+/// 
 /// <param name="_x">Position x from the left corner of the window.</param>
 /// <param name="_y">Position y from the top corner of the window.</param>
 /// <param name="_width">Width of view scissor region.</param>
@@ -2985,10 +3847,24 @@ extern fn bgfx_encoder_set_stencil(self: ?*Encoder, _fstencil: u32, _bstencil: u
 extern fn bgfx_encoder_set_scissor(self: ?*Encoder, _x: u16, _y: u16, _width: u16, _height: u16) u16;
 
 /// Set scissor from cache for draw primitive.
+/// 
 /// @remark
 ///   To scissor for all primitives in view see `bgfx::setViewScissor`.
+/// 
 /// <param name="_cache">Index in scissor cache.</param>
 extern fn bgfx_encoder_set_scissor_cached(self: ?*Encoder, _cache: u16) void;
+
+/// Set depth control (depth bias and depth clip) for draw primitive. Overrides the
+/// view depth bias for this draw.
+/// <param name="_constant">Constant depth bias.</param>
+/// <param name="_slopeScale">Slope-scaled depth bias.</param>
+/// <param name="_clamp">Depth bias clamp.</param>
+/// <param name="_depthClamp">Disable depth clipping and clamp NDC depth to the [0,1] range instead.</param>
+extern fn bgfx_encoder_set_depth_control(self: ?*Encoder, _constant: i32, _slopeScale: f32, _clamp: f32, _depthClamp: bool) u16;
+
+/// Set depth control from depth-control cache for draw primitive.
+/// <param name="_cache">Index in depth control cache.</param>
+extern fn bgfx_encoder_set_depth_control_cached(self: ?*Encoder, _cache: u16) void;
 
 /// Set model matrix for draw primitive. If it is not called,
 /// the model will be rendered with an identity model matrix.
@@ -3002,7 +3878,9 @@ extern fn bgfx_encoder_set_transform(self: ?*Encoder, _mtx: ?*const anyopaque, _
 extern fn bgfx_encoder_set_transform_cached(self: ?*Encoder, _cache: u32, _num: u16) void;
 
 /// Reserve matrices in internal matrix cache.
+/// 
 /// @attention Pointer returned can be modified until `bgfx::frame` is called.
+/// 
 /// <param name="_transform">Pointer to `Transform` structure.</param>
 /// <param name="_num">Number of matrices.</param>
 extern fn bgfx_encoder_alloc_transform(self: ?*Encoder, _transform: [*c]Transform, _num: u16) u32;
@@ -3012,6 +3890,40 @@ extern fn bgfx_encoder_alloc_transform(self: ?*Encoder, _transform: [*c]Transfor
 /// <param name="_value">Pointer to uniform data.</param>
 /// <param name="_num">Number of elements. Passing `UINT16_MAX` will use the _num passed on uniform creation.</param>
 extern fn bgfx_encoder_set_uniform(self: ?*Encoder, _handle: UniformHandle, _value: ?*const anyopaque, _num: u16) void;
+
+/// Set shader uniform parameter by reference. Unlike `Encoder::setUniform`, the data
+/// is not copied immediately; the renderer reads it from `_value` at frame render
+/// time. The pointer must remain valid and unchanged until the frame is rendered
+/// (up to two `bgfx::frame` calls with multithreaded submission).
+/// <param name="_handle">Uniform.</param>
+/// <param name="_value">Pointer to uniform data. Must stay valid until the frame is rendered.</param>
+/// <param name="_num">Number of elements. Passing `UINT16_MAX` will use the _num passed on uniform creation.</param>
+extern fn bgfx_encoder_set_uniform_ref(self: ?*Encoder, _handle: UniformHandle, _value: ?*const anyopaque, _num: u16) void;
+
+/// Set shader uniform parameter for view.
+/// 
+/// @attention Uniform must be created with `bgfx::UniformFreq::View` argument.
+/// 
+/// <param name="_id">View id.</param>
+/// <param name="_handle">Uniform.</param>
+/// <param name="_value">Pointer to uniform data.</param>
+/// <param name="_num">Number of elements. Passing `UINT16_MAX` will use the _num passed on uniform creation.</param>
+pub inline fn setViewUniform(_id: ViewId, _handle: UniformHandle, _value: ?*const anyopaque, _num: u16) void {
+    return bgfx_set_view_uniform(_id, _handle, _value, _num);
+}
+extern fn bgfx_set_view_uniform(_id: ViewId, _handle: UniformHandle, _value: ?*const anyopaque, _num: u16) void;
+
+/// Set shader uniform parameter for frame.
+/// 
+/// @attention Uniform must be created with `bgfx::UniformFreq::Frame` argument.
+/// 
+/// <param name="_handle">Uniform.</param>
+/// <param name="_value">Pointer to uniform data.</param>
+/// <param name="_num">Number of elements. Passing `UINT16_MAX` will use the _num passed on uniform creation.</param>
+pub inline fn setFrameUniform(_handle: UniformHandle, _value: ?*const anyopaque, _num: u16) void {
+    return bgfx_set_frame_uniform(_handle, _value, _num);
+}
+extern fn bgfx_set_frame_uniform(_handle: UniformHandle, _value: ?*const anyopaque, _num: u16) void;
 
 /// Set index buffer for draw primitive.
 /// <param name="_handle">Index buffer.</param>
@@ -3053,6 +3965,12 @@ extern fn bgfx_encoder_set_vertex_buffer_with_layout(self: ?*Encoder, _stream: u
 /// <param name="_numVertices">Number of vertices to render.</param>
 extern fn bgfx_encoder_set_dynamic_vertex_buffer(self: ?*Encoder, _stream: u8, _handle: DynamicVertexBufferHandle, _startVertex: u32, _numVertices: u32) void;
 
+/// Set vertex buffer for draw primitive.
+/// <param name="_stream">Vertex stream.</param>
+/// <param name="_handle">Dynamic vertex buffer.</param>
+/// <param name="_startVertex">First vertex to render.</param>
+/// <param name="_numVertices">Number of vertices to render.</param>
+/// <param name="_layoutHandle">Vertex layout for aliasing vertex buffer. If invalid handle is used, vertex layout used for creation of vertex buffer will be used.</param>
 extern fn bgfx_encoder_set_dynamic_vertex_buffer_with_layout(self: ?*Encoder, _stream: u8, _handle: DynamicVertexBufferHandle, _startVertex: u32, _numVertices: u32, _layoutHandle: VertexLayoutHandle) void;
 
 /// Set vertex buffer for draw primitive.
@@ -3072,7 +3990,8 @@ extern fn bgfx_encoder_set_transient_vertex_buffer_with_layout(self: ?*Encoder, 
 
 /// Set number of vertices for auto generated vertices use in conjunction
 /// with gl_VertexID.
-/// @attention Availability depends on: `BGFX_CAPS_VERTEX_ID`.
+/// 
+/// 
 /// <param name="_numVertices">Number of vertices.</param>
 extern fn bgfx_encoder_set_vertex_count(self: ?*Encoder, _numVertices: u32) void;
 
@@ -3096,7 +4015,9 @@ extern fn bgfx_encoder_set_instance_data_from_dynamic_vertex_buffer(self: ?*Enco
 
 /// Set number of instances for auto generated instances use in conjunction
 /// with gl_InstanceID.
-/// @attention Availability depends on: `BGFX_CAPS_VERTEX_ID`.
+/// 
+/// 
+/// <param name="_numInstances">Number of instances.</param>
 extern fn bgfx_encoder_set_instance_count(self: ?*Encoder, _numInstances: u32) void;
 
 /// Set texture stage for draw primitive.
@@ -3106,12 +4027,28 @@ extern fn bgfx_encoder_set_instance_count(self: ?*Encoder, _numInstances: u32) v
 /// <param name="_flags">Texture sampling mode. Default value UINT32_MAX uses   texture sampling settings from the texture.   - `BGFX_SAMPLER_[U/V/W]_[MIRROR/CLAMP]` - Mirror or clamp to edge wrap     mode.   - `BGFX_SAMPLER_[MIN/MAG/MIP]_[POINT/ANISOTROPIC]` - Point or anisotropic     sampling.</param>
 extern fn bgfx_encoder_set_texture(self: ?*Encoder, _stage: u8, _sampler: UniformHandle, _handle: TextureHandle, _flags: u32) void;
 
+/// Set texture stage for draw primitive, selecting a sub-range of the
+/// texture's array layers and mip levels.
+/// <param name="_stage">Texture unit.</param>
+/// <param name="_sampler">Program sampler.</param>
+/// <param name="_handle">Texture handle.</param>
+/// <param name="_firstLayer">First array layer.</param>
+/// <param name="_numLayers">Number of array layers.</param>
+/// <param name="_firstMip">First (most detailed) mip level.</param>
+/// <param name="_numMips">Number of mip levels.</param>
+/// <param name="_flags">Texture sampling mode. Default value UINT32_MAX uses   texture sampling settings from the texture.   - `BGFX_SAMPLER_[U/V/W]_[MIRROR/CLAMP]` - Mirror or clamp to edge wrap     mode.   - `BGFX_SAMPLER_[MIN/MAG/MIP]_[POINT/ANISOTROPIC]` - Point or anisotropic     sampling.</param>
+/// <param name="_lodMin">Lowest (most detailed) level of detail the sampler may use, in quarter-mip steps, relative to `_firstMip`.</param>
+/// <param name="_lodMax">Highest (least detailed) level of detail the sampler may use, in quarter-mip steps, relative to `_firstMip`. `UINT8_MAX` leaves it unclamped.</param>
+extern fn bgfx_encoder_set_texture_view(self: ?*Encoder, _stage: u8, _sampler: UniformHandle, _handle: TextureHandle, _firstLayer: u16, _numLayers: u16, _firstMip: u8, _numMips: u8, _flags: u32, _lodMin: u8, _lodMax: u8) void;
+
 /// Submit an empty primitive for rendering. Uniforms and draw state
 /// will be applied but no geometry will be submitted. Useful in cases
 /// when no other draw/compute primitive is submitted to view, but it's
 /// desired to execute clear view.
+/// 
 /// @remark
 ///   These empty draw calls will sort before ordinary draw calls.
+/// 
 /// <param name="_id">View id.</param>
 extern fn bgfx_encoder_touch(self: ?*Encoder, _id: ViewId) void;
 
@@ -3132,7 +4069,9 @@ extern fn bgfx_encoder_submit_occlusion_query(self: ?*Encoder, _id: ViewId, _pro
 
 /// Submit primitive for rendering with index and instance data info from
 /// indirect buffer.
+/// 
 /// @attention Availability depends on: `BGFX_CAPS_DRAW_INDIRECT`.
+/// 
 /// <param name="_id">View id.</param>
 /// <param name="_program">Program.</param>
 /// <param name="_indirectHandle">Indirect buffer.</param>
@@ -3144,7 +4083,9 @@ extern fn bgfx_encoder_submit_indirect(self: ?*Encoder, _id: ViewId, _program: P
 
 /// Submit primitive for rendering with index and instance data info and
 /// draw count from indirect buffers.
+/// 
 /// @attention Availability depends on: `BGFX_CAPS_DRAW_INDIRECT_COUNT`.
+/// 
 /// <param name="_id">View id.</param>
 /// <param name="_program">Program.</param>
 /// <param name="_indirectHandle">Indirect buffer.</param>
@@ -3160,25 +4101,33 @@ extern fn bgfx_encoder_submit_indirect_count(self: ?*Encoder, _id: ViewId, _prog
 /// <param name="_stage">Compute stage.</param>
 /// <param name="_handle">Index buffer handle.</param>
 /// <param name="_access">Buffer access. See `Access::Enum`.</param>
-extern fn bgfx_encoder_set_compute_index_buffer(self: ?*Encoder, _stage: u8, _handle: IndexBufferHandle, _access: Access) void;
+/// <param name="_offset">Byte offset the shader's view of the buffer starts at. Must be a multiple of 256 bytes.</param>
+/// <param name="_size">Bytes bound from the offset, `UINT32_MAX` for the rest of the buffer.</param>
+extern fn bgfx_encoder_set_compute_index_buffer(self: ?*Encoder, _stage: u8, _handle: IndexBufferHandle, _access: Access, _offset: u32, _size: u32) void;
 
 /// Set compute vertex buffer.
 /// <param name="_stage">Compute stage.</param>
 /// <param name="_handle">Vertex buffer handle.</param>
 /// <param name="_access">Buffer access. See `Access::Enum`.</param>
-extern fn bgfx_encoder_set_compute_vertex_buffer(self: ?*Encoder, _stage: u8, _handle: VertexBufferHandle, _access: Access) void;
+/// <param name="_offset">Byte offset the shader's view of the buffer starts at. Must be a multiple of 256 bytes.</param>
+/// <param name="_size">Bytes bound from the offset, `UINT32_MAX` for the rest of the buffer.</param>
+extern fn bgfx_encoder_set_compute_vertex_buffer(self: ?*Encoder, _stage: u8, _handle: VertexBufferHandle, _access: Access, _offset: u32, _size: u32) void;
 
 /// Set compute dynamic index buffer.
 /// <param name="_stage">Compute stage.</param>
 /// <param name="_handle">Dynamic index buffer handle.</param>
 /// <param name="_access">Buffer access. See `Access::Enum`.</param>
-extern fn bgfx_encoder_set_compute_dynamic_index_buffer(self: ?*Encoder, _stage: u8, _handle: DynamicIndexBufferHandle, _access: Access) void;
+/// <param name="_offset">Byte offset the shader's view of the buffer starts at. Must be a multiple of 256 bytes.</param>
+/// <param name="_size">Bytes bound from the offset, `UINT32_MAX` for the rest of the buffer.</param>
+extern fn bgfx_encoder_set_compute_dynamic_index_buffer(self: ?*Encoder, _stage: u8, _handle: DynamicIndexBufferHandle, _access: Access, _offset: u32, _size: u32) void;
 
 /// Set compute dynamic vertex buffer.
 /// <param name="_stage">Compute stage.</param>
 /// <param name="_handle">Dynamic vertex buffer handle.</param>
 /// <param name="_access">Buffer access. See `Access::Enum`.</param>
-extern fn bgfx_encoder_set_compute_dynamic_vertex_buffer(self: ?*Encoder, _stage: u8, _handle: DynamicVertexBufferHandle, _access: Access) void;
+/// <param name="_offset">Byte offset the shader's view of the buffer starts at. Must be a multiple of 256 bytes.</param>
+/// <param name="_size">Bytes bound from the offset, `UINT32_MAX` for the rest of the buffer.</param>
+extern fn bgfx_encoder_set_compute_dynamic_vertex_buffer(self: ?*Encoder, _stage: u8, _handle: DynamicVertexBufferHandle, _access: Access, _offset: u32, _size: u32) void;
 
 /// Set compute indirect buffer.
 /// <param name="_stage">Compute stage.</param>
@@ -3193,6 +4142,17 @@ extern fn bgfx_encoder_set_compute_indirect_buffer(self: ?*Encoder, _stage: u8, 
 /// <param name="_access">Image access. See `Access::Enum`.</param>
 /// <param name="_format">Texture format. See: `TextureFormat::Enum`.</param>
 extern fn bgfx_encoder_set_image(self: ?*Encoder, _stage: u8, _handle: TextureHandle, _mip: u8, _access: Access, _format: TextureFormat) void;
+
+/// Set compute image stage for draw primitive, selecting a sub-range of the
+/// texture's array layers and mip levels.
+/// <param name="_stage">Compute stage.</param>
+/// <param name="_handle">Texture handle.</param>
+/// <param name="_firstLayer">First array layer.</param>
+/// <param name="_numLayers">Number of array layers.</param>
+/// <param name="_mip">Mip level.</param>
+/// <param name="_access">Image access. See `Access::Enum`.</param>
+/// <param name="_format">Texture format. See: `TextureFormat::Enum`.</param>
+extern fn bgfx_encoder_set_image_view(self: ?*Encoder, _stage: u8, _handle: TextureHandle, _firstLayer: u16, _numLayers: u16, _mip: u8, _access: Access, _format: TextureFormat) void;
 
 /// Dispatch compute.
 /// <param name="_id">View id.</param>
@@ -3216,96 +4176,152 @@ extern fn bgfx_encoder_dispatch_indirect(self: ?*Encoder, _id: ViewId, _program:
 /// <param name="_flags">Discard or preserve states. See `BGFX_DISCARD_*`.</param>
 extern fn bgfx_encoder_discard(self: ?*Encoder, _flags: u8) void;
 
-/// Blit 2D texture region between two 2D textures.
+/// Blit texture region between two textures.
+/// 
+/// @remarks
+///   The copy covers the region the two sides have in common: each side gives
+///   the origin it starts at, and the size is the smaller of the two extents.
+///   A zero `width`, `height` or `depth` extends to the rest of that mip.
+/// 
+///   Blit is performed on GPU, and it is ordered within the view. In views, all
+///   draw commands are executed after blit and compute commands.
+/// 
 /// @attention Destination texture must be created with `BGFX_TEXTURE_BLIT_DST` flag.
-/// @attention Availability depends on: `BGFX_CAPS_TEXTURE_BLIT`.
+/// 
 /// <param name="_id">View id.</param>
-/// <param name="_dst">Destination texture handle.</param>
-/// <param name="_dstMip">Destination texture mip level.</param>
-/// <param name="_dstX">Destination texture X position.</param>
-/// <param name="_dstY">Destination texture Y position.</param>
-/// <param name="_dstZ">If texture is 2D this argument should be 0. If destination texture is cube this argument represents destination texture cube face. For 3D texture this argument represents destination texture Z position.</param>
-/// <param name="_src">Source texture handle.</param>
-/// <param name="_srcMip">Source texture mip level.</param>
-/// <param name="_srcX">Source texture X position.</param>
-/// <param name="_srcY">Source texture Y position.</param>
-/// <param name="_srcZ">If texture is 2D this argument should be 0. If source texture is cube this argument represents source texture cube face. For 3D texture this argument represents source texture Z position.</param>
-/// <param name="_width">Width of region.</param>
-/// <param name="_height">Height of region.</param>
-/// <param name="_depth">If texture is 3D this argument represents depth of region, otherwise it's unused.</param>
-extern fn bgfx_encoder_blit(self: ?*Encoder, _id: ViewId, _dst: TextureHandle, _dstMip: u8, _dstX: u16, _dstY: u16, _dstZ: u16, _src: TextureHandle, _srcMip: u8, _srcX: u16, _srcY: u16, _srcZ: u16, _width: u16, _height: u16, _depth: u16) void;
+/// <param name="_dst">Destination texture region.</param>
+/// <param name="_src">Source texture region.</param>
+extern fn bgfx_encoder_blit(self: ?*Encoder, _id: ViewId, _dst: [*c]const TextureRegion, _src: [*c]const TextureRegion) void;
+
+/// Blit buffer region between two buffers.
+/// 
+/// @remarks
+///   The source region gives the number of bytes copied, and the destination
+///   region gives only the offset they land at. A zero `size` copies the rest of
+///   the source buffer. `rowPitch` and `slicePitch` are unused.
+/// 
+///   Buffer blit is performed on GPU, and it is ordered within the view, same as
+///   texture blit. In views, all draw commands are executed after blit and compute
+///   commands.
+/// 
+/// @attention Source buffer must be created with one of `BGFX_BUFFER_COMPUTE_*`, or
+///   `BGFX_BUFFER_DRAW_INDIRECT` flags.
+/// @attention Destination buffer must be created with `BGFX_BUFFER_COMPUTE_WRITE`, or
+///   `BGFX_BUFFER_DRAW_INDIRECT` flag.
+/// @attention Source and destination buffer must be different.
+/// 
+/// <param name="_id">View id.</param>
+/// <param name="_dst">Destination buffer region.</param>
+/// <param name="_src">Source buffer region.</param>
+extern fn bgfx_encoder_blit_buffer(self: ?*Encoder, _id: ViewId, _dst: [*c]const BufferRegion, _src: [*c]const BufferRegion) void;
+
+/// Blit texture region into buffer.
+/// 
+/// @remarks
+///   The texture region gives the size of the copy. `BufferRegion::rowPitch` and
+///   `slicePitch` choose how the texels are laid out in the buffer, and 0 packs
+///   them tightly. `BufferRegion::init` fills in the layout the backend copies
+///   fastest, and bgfx repacks internally for any other layout.
+/// 
+///   Blit is performed on GPU, and it is ordered within the view, same as texture
+///   blit. In views, all draw commands are executed after blit and compute commands.
+/// 
+/// @attention Destination buffer must be created with `BGFX_BUFFER_COMPUTE_WRITE`, or
+///   `BGFX_BUFFER_DRAW_INDIRECT` flag.
+/// 
+/// <param name="_id">View id.</param>
+/// <param name="_dst">Destination buffer region.</param>
+/// <param name="_src">Source texture region.</param>
+extern fn bgfx_encoder_blit_to_buffer(self: ?*Encoder, _id: ViewId, _dst: [*c]const BufferRegion, _src: [*c]const TextureRegion) void;
+
+/// Blit buffer contents into texture region.
+/// 
+/// @remarks
+///   The texture region gives the size of the copy. `BufferRegion::rowPitch` and
+///   `slicePitch` describe how the texels are laid out in the buffer, and 0 reads
+///   them tightly packed. `BufferRegion::init` fills in the layout the backend
+///   copies fastest, and bgfx repacks internally for any other layout.
+/// 
+///   Blit is performed on GPU, and it is ordered within the view, same as texture
+///   blit. In views, all draw commands are executed after blit and compute commands.
+/// 
+/// @attention Source buffer must be created with one of `BGFX_BUFFER_COMPUTE_*`, or
+///   `BGFX_BUFFER_DRAW_INDIRECT` flags.
+/// @attention Destination texture must be created with `BGFX_TEXTURE_BLIT_DST` flag.
+/// 
+/// <param name="_id">View id.</param>
+/// <param name="_dst">Destination texture region.</param>
+/// <param name="_src">Source buffer region.</param>
+extern fn bgfx_encoder_blit_from_buffer(self: ?*Encoder, _id: ViewId, _dst: [*c]const TextureRegion, _src: [*c]const BufferRegion) void;
 
 /// Request screen shot of window back buffer.
+/// 
 /// @remarks
 ///   `bgfx::CallbackI::screenShot` must be implemented.
 /// @attention Frame buffer handle must be created with OS' target native window handle.
+/// 
 /// <param name="_handle">Frame buffer handle. If handle is `BGFX_INVALID_HANDLE` request will be made for main window back buffer.</param>
-/// <param name="_filePath">Will be passed to `bgfx::CallbackI::screenShot` callback.</param>
+/// <param name="_filePath">Will be passed to `bgfx::CallbackI::screenShot` callback. If the device is lost before the screenshot is taken, `bgfx::CallbackI::fatal` reports `Fatal::DeviceLost` in that frame and `screenShot` is not called for this request.</param>
 pub inline fn requestScreenShot(_handle: FrameBufferHandle, _filePath: [*c]const u8) void {
     return bgfx_request_screen_shot(_handle, _filePath);
 }
 extern fn bgfx_request_screen_shot(_handle: FrameBufferHandle, _filePath: [*c]const u8) void;
 
-/// Render frame.
-/// @attention `bgfx::renderFrame` is blocking call. It waits for
-///   `bgfx::frame` to be called from API thread to process frame.
-///   If timeout value is passed call will timeout and return even
-///   if `bgfx::frame` is not called.
-/// @warning This call should be only used on platforms that don't
-///   allow creating separate rendering thread. If it is called before
-///   to bgfx::init, render thread won't be created by bgfx::init call.
+/// Render frame. Executes the actual GPU rendering work for one frame.
+/// 
+/// In the default **multithreaded** configuration, `bgfx::renderFrame` runs
+/// on the **render thread** while `bgfx::frame` runs on the **API thread**.
+/// Their interaction is as follows:
+/// 
+///   1. The render thread calls `bgfx::renderFrame`, which blocks waiting
+///      for the API thread to signal that a new frame is ready.
+///   2. On the API thread, `bgfx::frame` finishes building the frame,
+///      swaps internal submit/render buffers, and signals the render thread.
+///   3. `bgfx::renderFrame` wakes up, executes pre-render commands,
+///      submits GPU draw calls, executes post-render commands, flips the
+///      back buffer, then signals back to the API thread that rendering
+///      is complete.
+///   4. The API thread's next `bgfx::frame` call waits for this completion
+///      signal before swapping buffers again.
+/// 
+/// This double-buffered semaphore handshake allows the API thread and
+/// render thread to run in parallel, overlapping CPU frame building with
+/// GPU rendering.
+/// 
+/// @attention `bgfx::renderFrame` is a blocking call. It waits for
+///   `bgfx::frame` to be called from the API thread to process the frame.
+///   If a timeout value is passed, the call will return
+///   `RenderFrame::Timeout` even if `bgfx::frame` has not been called.
+///   A value of -1 (default) means wait indefinitely (up to
+///   `BGFX_CONFIG_API_SEMAPHORE_TIMEOUT`).
+/// 
+/// @warning This call should only be used on platforms that don't allow
+///   creating a separate rendering thread. If it is called before
+///   `bgfx::init`, the internal render thread won't be created by the
+///   `bgfx::init` call, and the user is responsible for calling
+///   `bgfx::renderFrame` on the render thread each frame. If both
+///   `bgfx::renderFrame` and `bgfx::init` are called from the same
+///   thread, bgfx operates in single-threaded mode and `bgfx::frame`
+///   will internally invoke `bgfx::renderFrame` automatically.
+///   See also: `bgfx::frame`.
+/// 
 /// <param name="_msecs">Timeout in milliseconds.</param>
 pub inline fn renderFrame(_msecs: i32) RenderFrame {
     return bgfx_render_frame(_msecs);
 }
 extern fn bgfx_render_frame(_msecs: i32) RenderFrame;
 
-/// Set platform data.
-/// @warning Must be called before `bgfx::init`.
-/// <param name="_data">Platform data.</param>
-pub inline fn setPlatformData(_data: [*c]const PlatformData) void {
-    return bgfx_set_platform_data(_data);
-}
-extern fn bgfx_set_platform_data(_data: [*c]const PlatformData) void;
-
 /// Get internal data for interop.
+/// 
 /// @attention It's expected you understand some bgfx internals before you
 ///   use this call.
+/// 
 /// @warning Must be called only on render thread.
+/// 
 pub inline fn getInternalData() [*c]const InternalData {
     return bgfx_get_internal_data();
 }
 extern fn bgfx_get_internal_data() [*c]const InternalData;
-
-/// Override internal texture with externally created texture. Previously
-/// created internal texture will released.
-/// @attention It's expected you understand some bgfx internals before you
-///   use this call.
-/// @warning Must be called only on render thread.
-/// <param name="_handle">Texture handle.</param>
-/// <param name="_ptr">Native API pointer to texture.</param>
-pub inline fn overrideInternalTexturePtr(_handle: TextureHandle, _ptr: usize) usize {
-    return bgfx_override_internal_texture_ptr(_handle, _ptr);
-}
-extern fn bgfx_override_internal_texture_ptr(_handle: TextureHandle, _ptr: usize) usize;
-
-/// Override internal texture by creating new texture. Previously created
-/// internal texture will released.
-/// @attention It's expected you understand some bgfx internals before you
-///   use this call.
-/// @returns Native API pointer to texture. If result is 0, texture is not created yet from the
-///   main thread.
-/// @warning Must be called only on render thread.
-/// <param name="_handle">Texture handle.</param>
-/// <param name="_width">Width.</param>
-/// <param name="_height">Height.</param>
-/// <param name="_numMips">Number of mip-maps.</param>
-/// <param name="_format">Texture format. See: `TextureFormat::Enum`.</param>
-/// <param name="_flags">Texture creation (see `BGFX_TEXTURE_*`.), and sampler (see `BGFX_SAMPLER_*`) flags. Default texture sampling mode is linear, and wrap mode is repeat. - `BGFX_SAMPLER_[U/V/W]_[MIRROR/CLAMP]` - Mirror or clamp to edge wrap   mode. - `BGFX_SAMPLER_[MIN/MAG/MIP]_[POINT/ANISOTROPIC]` - Point or anisotropic   sampling.</param>
-pub inline fn overrideInternalTexture(_handle: TextureHandle, _width: u16, _height: u16, _numMips: u8, _format: TextureFormat, _flags: u64) usize {
-    return bgfx_override_internal_texture(_handle, _width, _height, _numMips, _format, _flags);
-}
-extern fn bgfx_override_internal_texture(_handle: TextureHandle, _width: u16, _height: u16, _numMips: u8, _format: TextureFormat, _flags: u64) usize;
 
 /// Sets a debug marker. This allows you to group graphics calls together for easy browsing in
 /// graphics debugging tools.
@@ -3317,6 +4333,7 @@ pub inline fn setMarker(_name: [*c]const u8, _len: i32) void {
 extern fn bgfx_set_marker(_name: [*c]const u8, _len: i32) void;
 
 /// Set render states for draw primitive.
+/// 
 /// @remarks
 ///   1. To set up more complex states use:
 ///      `BGFX_STATE_ALPHA_REF(_ref)`,
@@ -3327,6 +4344,7 @@ extern fn bgfx_set_marker(_name: [*c]const u8, _len: i32) void;
 ///      `BGFX_STATE_BLEND_EQUATION_SEPARATE(_equationRGB, _equationA)`
 ///   2. `BGFX_STATE_BLEND_EQUATION_ADD` is set when no other blend
 ///      equation is specified.
+/// 
 /// <param name="_state">State flags. Default state for primitive type is   triangles. See: `BGFX_STATE_DEFAULT`.   - `BGFX_STATE_DEPTH_TEST_*` - Depth test function.   - `BGFX_STATE_BLEND_*` - See remark 1 about BGFX_STATE_BLEND_FUNC.   - `BGFX_STATE_BLEND_EQUATION_*` - See remark 2.   - `BGFX_STATE_CULL_*` - Backface culling mode.   - `BGFX_STATE_WRITE_*` - Enable R, G, B, A or Z write.   - `BGFX_STATE_MSAA` - Enable hardware multisample antialiasing.   - `BGFX_STATE_PT_[TRISTRIP/LINES/POINTS]` - Primitive type.</param>
 /// <param name="_rgba">Sets blend factor used by `BGFX_STATE_BLEND_FACTOR` and   `BGFX_STATE_BLEND_INV_FACTOR` blend modes.</param>
 pub inline fn setState(_state: u64, _rgba: u32) void {
@@ -3350,9 +4368,20 @@ pub inline fn setStencil(_fstencil: u32, _bstencil: u32) void {
 }
 extern fn bgfx_set_stencil(_fstencil: u32, _bstencil: u32) void;
 
+/// Set multisample coverage mask for draw primitive. Samples whose bit is clear
+/// in the mask are never written, regardless of the coverage the rasterizer
+/// computes. Only has an effect when rendering to a multisampled target.
+/// <param name="_mask">Sample coverage mask.</param>
+pub inline fn setSampleMask(_mask: u32) void {
+    return bgfx_set_sample_mask(_mask);
+}
+extern fn bgfx_set_sample_mask(_mask: u32) void;
+
 /// Set scissor for draw primitive.
+/// 
 /// @remark
 ///   To scissor for all primitives in view see `bgfx::setViewScissor`.
+/// 
 /// <param name="_x">Position x from the left corner of the window.</param>
 /// <param name="_y">Position y from the top corner of the window.</param>
 /// <param name="_width">Width of view scissor region.</param>
@@ -3363,13 +4392,33 @@ pub inline fn setScissor(_x: u16, _y: u16, _width: u16, _height: u16) u16 {
 extern fn bgfx_set_scissor(_x: u16, _y: u16, _width: u16, _height: u16) u16;
 
 /// Set scissor from cache for draw primitive.
+/// 
 /// @remark
 ///   To scissor for all primitives in view see `bgfx::setViewScissor`.
+/// 
 /// <param name="_cache">Index in scissor cache.</param>
 pub inline fn setScissorCached(_cache: u16) void {
     return bgfx_set_scissor_cached(_cache);
 }
 extern fn bgfx_set_scissor_cached(_cache: u16) void;
+
+/// Set depth control (depth bias and depth clip) for draw primitive. Overrides the
+/// view depth bias for this draw.
+/// <param name="_constant">Constant depth bias.</param>
+/// <param name="_slopeScale">Slope-scaled depth bias.</param>
+/// <param name="_clamp">Depth bias clamp.</param>
+/// <param name="_depthClamp">Disable depth clipping and clamp NDC depth to the [0,1] range instead.</param>
+pub inline fn setDepthControl(_constant: i32, _slopeScale: f32, _clamp: f32, _depthClamp: bool) u16 {
+    return bgfx_set_depth_control(_constant, _slopeScale, _clamp, _depthClamp);
+}
+extern fn bgfx_set_depth_control(_constant: i32, _slopeScale: f32, _clamp: f32, _depthClamp: bool) u16;
+
+/// Set depth control from depth-control cache for draw primitive.
+/// <param name="_cache">Index in depth control cache.</param>
+pub inline fn setDepthControlCached(_cache: u16) void {
+    return bgfx_set_depth_control_cached(_cache);
+}
+extern fn bgfx_set_depth_control_cached(_cache: u16) void;
 
 /// Set model matrix for draw primitive. If it is not called,
 /// the model will be rendered with an identity model matrix.
@@ -3389,7 +4438,9 @@ pub inline fn setTransformCached(_cache: u32, _num: u16) void {
 extern fn bgfx_set_transform_cached(_cache: u32, _num: u16) void;
 
 /// Reserve matrices in internal matrix cache.
+/// 
 /// @attention Pointer returned can be modified until `bgfx::frame` is called.
+/// 
 /// <param name="_transform">Pointer to `Transform` structure.</param>
 /// <param name="_num">Number of matrices.</param>
 pub inline fn allocTransform(_transform: [*c]Transform, _num: u16) u32 {
@@ -3405,6 +4456,18 @@ pub inline fn setUniform(_handle: UniformHandle, _value: ?*const anyopaque, _num
     return bgfx_set_uniform(_handle, _value, _num);
 }
 extern fn bgfx_set_uniform(_handle: UniformHandle, _value: ?*const anyopaque, _num: u16) void;
+
+/// Set shader uniform parameter by reference. Unlike `bgfx::setUniform`, the data
+/// is not copied immediately; the renderer reads it from `_value` at frame render
+/// time. The pointer must remain valid and unchanged until the frame is rendered
+/// (up to two `bgfx::frame` calls with multithreaded submission).
+/// <param name="_handle">Uniform.</param>
+/// <param name="_value">Pointer to uniform data. Must stay valid until the frame is rendered.</param>
+/// <param name="_num">Number of elements. Passing `UINT16_MAX` will use the _num passed on uniform creation.</param>
+pub inline fn setUniformRef(_handle: UniformHandle, _value: ?*const anyopaque, _num: u16) void {
+    return bgfx_set_uniform_ref(_handle, _value, _num);
+}
+extern fn bgfx_set_uniform_ref(_handle: UniformHandle, _value: ?*const anyopaque, _num: u16) void;
 
 /// Set index buffer for draw primitive.
 /// <param name="_handle">Index buffer.</param>
@@ -3498,7 +4561,8 @@ extern fn bgfx_set_transient_vertex_buffer_with_layout(_stream: u8, _tvb: [*c]co
 
 /// Set number of vertices for auto generated vertices use in conjunction
 /// with gl_VertexID.
-/// @attention Availability depends on: `BGFX_CAPS_VERTEX_ID`.
+/// 
+/// 
 /// <param name="_numVertices">Number of vertices.</param>
 pub inline fn setVertexCount(_numVertices: u32) void {
     return bgfx_set_vertex_count(_numVertices);
@@ -3534,7 +4598,9 @@ extern fn bgfx_set_instance_data_from_dynamic_vertex_buffer(_handle: DynamicVert
 
 /// Set number of instances for auto generated instances use in conjunction
 /// with gl_InstanceID.
-/// @attention Availability depends on: `BGFX_CAPS_VERTEX_ID`.
+/// 
+/// 
+/// <param name="_numInstances">Number of instances.</param>
 pub inline fn setInstanceCount(_numInstances: u32) void {
     return bgfx_set_instance_count(_numInstances);
 }
@@ -3550,10 +4616,29 @@ pub inline fn setTexture(_stage: u8, _sampler: UniformHandle, _handle: TextureHa
 }
 extern fn bgfx_set_texture(_stage: u8, _sampler: UniformHandle, _handle: TextureHandle, _flags: u32) void;
 
+/// Set texture stage for draw primitive, selecting a sub-range of the
+/// texture's array layers and mip levels.
+/// <param name="_stage">Texture unit.</param>
+/// <param name="_sampler">Program sampler.</param>
+/// <param name="_handle">Texture handle.</param>
+/// <param name="_firstLayer">First array layer.</param>
+/// <param name="_numLayers">Number of array layers.</param>
+/// <param name="_firstMip">First (most detailed) mip level.</param>
+/// <param name="_numMips">Number of mip levels.</param>
+/// <param name="_flags">Texture sampling mode. Default value UINT32_MAX uses   texture sampling settings from the texture.   - `BGFX_SAMPLER_[U/V/W]_[MIRROR/CLAMP]` - Mirror or clamp to edge wrap     mode.   - `BGFX_SAMPLER_[MIN/MAG/MIP]_[POINT/ANISOTROPIC]` - Point or anisotropic     sampling.</param>
+/// <param name="_lodMin">Lowest (most detailed) level of detail the sampler may use, in quarter-mip steps, relative to `_firstMip`.</param>
+/// <param name="_lodMax">Highest (least detailed) level of detail the sampler may use, in quarter-mip steps, relative to `_firstMip`. `UINT8_MAX` leaves it unclamped.</param>
+pub inline fn setTextureView(_stage: u8, _sampler: UniformHandle, _handle: TextureHandle, _firstLayer: u16, _numLayers: u16, _firstMip: u8, _numMips: u8, _flags: u32, _lodMin: u8, _lodMax: u8) void {
+    return bgfx_set_texture_view(_stage, _sampler, _handle, _firstLayer, _numLayers, _firstMip, _numMips, _flags, _lodMin, _lodMax);
+}
+extern fn bgfx_set_texture_view(_stage: u8, _sampler: UniformHandle, _handle: TextureHandle, _firstLayer: u16, _numLayers: u16, _firstMip: u8, _numMips: u8, _flags: u32, _lodMin: u8, _lodMax: u8) void;
+
 /// Submit an empty primitive for rendering. Uniforms and draw state
 /// will be applied but no geometry will be submitted.
+/// 
 /// @remark
 ///   These empty draw calls will sort before ordinary draw calls.
+/// 
 /// <param name="_id">View id.</param>
 pub inline fn touch(_id: ViewId) void {
     return bgfx_touch(_id);
@@ -3583,7 +4668,9 @@ extern fn bgfx_submit_occlusion_query(_id: ViewId, _program: ProgramHandle, _occ
 
 /// Submit primitive for rendering with index and instance data info from
 /// indirect buffer.
+/// 
 /// @attention Availability depends on: `BGFX_CAPS_DRAW_INDIRECT`.
+/// 
 /// <param name="_id">View id.</param>
 /// <param name="_program">Program.</param>
 /// <param name="_indirectHandle">Indirect buffer.</param>
@@ -3598,7 +4685,9 @@ extern fn bgfx_submit_indirect(_id: ViewId, _program: ProgramHandle, _indirectHa
 
 /// Submit primitive for rendering with index and instance data info and
 /// draw count from indirect buffers.
+/// 
 /// @attention Availability depends on: `BGFX_CAPS_DRAW_INDIRECT_COUNT`.
+/// 
 /// <param name="_id">View id.</param>
 /// <param name="_program">Program.</param>
 /// <param name="_indirectHandle">Indirect buffer.</param>
@@ -3617,37 +4706,45 @@ extern fn bgfx_submit_indirect_count(_id: ViewId, _program: ProgramHandle, _indi
 /// <param name="_stage">Compute stage.</param>
 /// <param name="_handle">Index buffer handle.</param>
 /// <param name="_access">Buffer access. See `Access::Enum`.</param>
-pub inline fn setComputeIndexBuffer(_stage: u8, _handle: IndexBufferHandle, _access: Access) void {
-    return bgfx_set_compute_index_buffer(_stage, _handle, _access);
+/// <param name="_offset">Byte offset the shader's view of the buffer starts at. Must be a multiple of 256 bytes.</param>
+/// <param name="_size">Bytes bound from the offset, `UINT32_MAX` for the rest of the buffer.</param>
+pub inline fn setComputeIndexBuffer(_stage: u8, _handle: IndexBufferHandle, _access: Access, _offset: u32, _size: u32) void {
+    return bgfx_set_compute_index_buffer(_stage, _handle, _access, _offset, _size);
 }
-extern fn bgfx_set_compute_index_buffer(_stage: u8, _handle: IndexBufferHandle, _access: Access) void;
+extern fn bgfx_set_compute_index_buffer(_stage: u8, _handle: IndexBufferHandle, _access: Access, _offset: u32, _size: u32) void;
 
 /// Set compute vertex buffer.
 /// <param name="_stage">Compute stage.</param>
 /// <param name="_handle">Vertex buffer handle.</param>
 /// <param name="_access">Buffer access. See `Access::Enum`.</param>
-pub inline fn setComputeVertexBuffer(_stage: u8, _handle: VertexBufferHandle, _access: Access) void {
-    return bgfx_set_compute_vertex_buffer(_stage, _handle, _access);
+/// <param name="_offset">Byte offset the shader's view of the buffer starts at. Must be a multiple of 256 bytes.</param>
+/// <param name="_size">Bytes bound from the offset, `UINT32_MAX` for the rest of the buffer.</param>
+pub inline fn setComputeVertexBuffer(_stage: u8, _handle: VertexBufferHandle, _access: Access, _offset: u32, _size: u32) void {
+    return bgfx_set_compute_vertex_buffer(_stage, _handle, _access, _offset, _size);
 }
-extern fn bgfx_set_compute_vertex_buffer(_stage: u8, _handle: VertexBufferHandle, _access: Access) void;
+extern fn bgfx_set_compute_vertex_buffer(_stage: u8, _handle: VertexBufferHandle, _access: Access, _offset: u32, _size: u32) void;
 
 /// Set compute dynamic index buffer.
 /// <param name="_stage">Compute stage.</param>
 /// <param name="_handle">Dynamic index buffer handle.</param>
 /// <param name="_access">Buffer access. See `Access::Enum`.</param>
-pub inline fn setComputeDynamicIndexBuffer(_stage: u8, _handle: DynamicIndexBufferHandle, _access: Access) void {
-    return bgfx_set_compute_dynamic_index_buffer(_stage, _handle, _access);
+/// <param name="_offset">Byte offset the shader's view of the buffer starts at. Must be a multiple of 256 bytes.</param>
+/// <param name="_size">Bytes bound from the offset, `UINT32_MAX` for the rest of the buffer.</param>
+pub inline fn setComputeDynamicIndexBuffer(_stage: u8, _handle: DynamicIndexBufferHandle, _access: Access, _offset: u32, _size: u32) void {
+    return bgfx_set_compute_dynamic_index_buffer(_stage, _handle, _access, _offset, _size);
 }
-extern fn bgfx_set_compute_dynamic_index_buffer(_stage: u8, _handle: DynamicIndexBufferHandle, _access: Access) void;
+extern fn bgfx_set_compute_dynamic_index_buffer(_stage: u8, _handle: DynamicIndexBufferHandle, _access: Access, _offset: u32, _size: u32) void;
 
 /// Set compute dynamic vertex buffer.
 /// <param name="_stage">Compute stage.</param>
 /// <param name="_handle">Dynamic vertex buffer handle.</param>
 /// <param name="_access">Buffer access. See `Access::Enum`.</param>
-pub inline fn setComputeDynamicVertexBuffer(_stage: u8, _handle: DynamicVertexBufferHandle, _access: Access) void {
-    return bgfx_set_compute_dynamic_vertex_buffer(_stage, _handle, _access);
+/// <param name="_offset">Byte offset the shader's view of the buffer starts at. Must be a multiple of 256 bytes.</param>
+/// <param name="_size">Bytes bound from the offset, `UINT32_MAX` for the rest of the buffer.</param>
+pub inline fn setComputeDynamicVertexBuffer(_stage: u8, _handle: DynamicVertexBufferHandle, _access: Access, _offset: u32, _size: u32) void {
+    return bgfx_set_compute_dynamic_vertex_buffer(_stage, _handle, _access, _offset, _size);
 }
-extern fn bgfx_set_compute_dynamic_vertex_buffer(_stage: u8, _handle: DynamicVertexBufferHandle, _access: Access) void;
+extern fn bgfx_set_compute_dynamic_vertex_buffer(_stage: u8, _handle: DynamicVertexBufferHandle, _access: Access, _offset: u32, _size: u32) void;
 
 /// Set compute indirect buffer.
 /// <param name="_stage">Compute stage.</param>
@@ -3668,6 +4765,20 @@ pub inline fn setImage(_stage: u8, _handle: TextureHandle, _mip: u8, _access: Ac
     return bgfx_set_image(_stage, _handle, _mip, _access, _format);
 }
 extern fn bgfx_set_image(_stage: u8, _handle: TextureHandle, _mip: u8, _access: Access, _format: TextureFormat) void;
+
+/// Set compute image stage for draw primitive, selecting a sub-range of the
+/// texture's array layers and mip levels.
+/// <param name="_stage">Compute stage.</param>
+/// <param name="_handle">Texture handle.</param>
+/// <param name="_firstLayer">First array layer.</param>
+/// <param name="_numLayers">Number of array layers.</param>
+/// <param name="_mip">Mip level.</param>
+/// <param name="_access">Image access. See `Access::Enum`.</param>
+/// <param name="_format">Texture format. See: `TextureFormat::Enum`.</param>
+pub inline fn setImageView(_stage: u8, _handle: TextureHandle, _firstLayer: u16, _numLayers: u16, _mip: u8, _access: Access, _format: TextureFormat) void {
+    return bgfx_set_image_view(_stage, _handle, _firstLayer, _numLayers, _mip, _access, _format);
+}
+extern fn bgfx_set_image_view(_stage: u8, _handle: TextureHandle, _firstLayer: u16, _numLayers: u16, _mip: u8, _access: Access, _format: TextureFormat) void;
 
 /// Dispatch compute.
 /// <param name="_id">View id.</param>
@@ -3700,26 +4811,94 @@ pub inline fn discard(_flags: u8) void {
 }
 extern fn bgfx_discard(_flags: u8) void;
 
-/// Blit 2D texture region between two 2D textures.
+/// Blit texture region between two textures.
+/// 
+/// @remarks
+///   The copy covers the region the two sides have in common: each side gives
+///   the origin it starts at, and the size is the smaller of the two extents.
+///   A zero `width`, `height` or `depth` extends to the rest of that mip.
+/// 
+///   Blit is performed on GPU, and it is ordered within the view. In views, all
+///   draw commands are executed after blit and compute commands.
+/// 
 /// @attention Destination texture must be created with `BGFX_TEXTURE_BLIT_DST` flag.
-/// @attention Availability depends on: `BGFX_CAPS_TEXTURE_BLIT`.
+/// 
 /// <param name="_id">View id.</param>
-/// <param name="_dst">Destination texture handle.</param>
-/// <param name="_dstMip">Destination texture mip level.</param>
-/// <param name="_dstX">Destination texture X position.</param>
-/// <param name="_dstY">Destination texture Y position.</param>
-/// <param name="_dstZ">If texture is 2D this argument should be 0. If destination texture is cube this argument represents destination texture cube face. For 3D texture this argument represents destination texture Z position.</param>
-/// <param name="_src">Source texture handle.</param>
-/// <param name="_srcMip">Source texture mip level.</param>
-/// <param name="_srcX">Source texture X position.</param>
-/// <param name="_srcY">Source texture Y position.</param>
-/// <param name="_srcZ">If texture is 2D this argument should be 0. If source texture is cube this argument represents source texture cube face. For 3D texture this argument represents source texture Z position.</param>
-/// <param name="_width">Width of region.</param>
-/// <param name="_height">Height of region.</param>
-/// <param name="_depth">If texture is 3D this argument represents depth of region, otherwise it's unused.</param>
-pub inline fn blit(_id: ViewId, _dst: TextureHandle, _dstMip: u8, _dstX: u16, _dstY: u16, _dstZ: u16, _src: TextureHandle, _srcMip: u8, _srcX: u16, _srcY: u16, _srcZ: u16, _width: u16, _height: u16, _depth: u16) void {
-    return bgfx_blit(_id, _dst, _dstMip, _dstX, _dstY, _dstZ, _src, _srcMip, _srcX, _srcY, _srcZ, _width, _height, _depth);
+/// <param name="_dst">Destination texture region.</param>
+/// <param name="_src">Source texture region.</param>
+pub inline fn blit(_id: ViewId, _dst: [*c]const TextureRegion, _src: [*c]const TextureRegion) void {
+    return bgfx_blit(_id, _dst, _src);
 }
-extern fn bgfx_blit(_id: ViewId, _dst: TextureHandle, _dstMip: u8, _dstX: u16, _dstY: u16, _dstZ: u16, _src: TextureHandle, _srcMip: u8, _srcX: u16, _srcY: u16, _srcZ: u16, _width: u16, _height: u16, _depth: u16) void;
+extern fn bgfx_blit(_id: ViewId, _dst: [*c]const TextureRegion, _src: [*c]const TextureRegion) void;
+
+/// Blit buffer region between two buffers.
+/// 
+/// @remarks
+///   The source region gives the number of bytes copied, and the destination
+///   region gives only the offset they land at. A zero `size` copies the rest of
+///   the source buffer. `rowPitch` and `slicePitch` are unused.
+/// 
+///   Buffer blit is performed on GPU, and it is ordered within the view, same as
+///   texture blit. In views, all draw commands are executed after blit and compute
+///   commands.
+/// 
+/// @attention Source buffer must be created with one of `BGFX_BUFFER_COMPUTE_*`, or
+///   `BGFX_BUFFER_DRAW_INDIRECT` flags.
+/// @attention Destination buffer must be created with `BGFX_BUFFER_COMPUTE_WRITE`, or
+///   `BGFX_BUFFER_DRAW_INDIRECT` flag.
+/// @attention Source and destination buffer must be different.
+/// 
+/// <param name="_id">View id.</param>
+/// <param name="_dst">Destination buffer region.</param>
+/// <param name="_src">Source buffer region.</param>
+pub inline fn blitBuffer(_id: ViewId, _dst: [*c]const BufferRegion, _src: [*c]const BufferRegion) void {
+    return bgfx_blit_buffer(_id, _dst, _src);
+}
+extern fn bgfx_blit_buffer(_id: ViewId, _dst: [*c]const BufferRegion, _src: [*c]const BufferRegion) void;
+
+/// Blit texture region into buffer.
+/// 
+/// @remarks
+///   The texture region gives the size of the copy. `BufferRegion::rowPitch` and
+///   `slicePitch` choose how the texels are laid out in the buffer, and 0 packs
+///   them tightly. `BufferRegion::init` fills in the layout the backend copies
+///   fastest, and bgfx repacks internally for any other layout.
+/// 
+///   Blit is performed on GPU, and it is ordered within the view, same as texture
+///   blit. In views, all draw commands are executed after blit and compute commands.
+/// 
+/// @attention Destination buffer must be created with `BGFX_BUFFER_COMPUTE_WRITE`, or
+///   `BGFX_BUFFER_DRAW_INDIRECT` flag.
+/// 
+/// <param name="_id">View id.</param>
+/// <param name="_dst">Destination buffer region.</param>
+/// <param name="_src">Source texture region.</param>
+pub inline fn blitToBuffer(_id: ViewId, _dst: [*c]const BufferRegion, _src: [*c]const TextureRegion) void {
+    return bgfx_blit_to_buffer(_id, _dst, _src);
+}
+extern fn bgfx_blit_to_buffer(_id: ViewId, _dst: [*c]const BufferRegion, _src: [*c]const TextureRegion) void;
+
+/// Blit buffer contents into texture region.
+/// 
+/// @remarks
+///   The texture region gives the size of the copy. `BufferRegion::rowPitch` and
+///   `slicePitch` describe how the texels are laid out in the buffer, and 0 reads
+///   them tightly packed. `BufferRegion::init` fills in the layout the backend
+///   copies fastest, and bgfx repacks internally for any other layout.
+/// 
+///   Blit is performed on GPU, and it is ordered within the view, same as texture
+///   blit. In views, all draw commands are executed after blit and compute commands.
+/// 
+/// @attention Source buffer must be created with one of `BGFX_BUFFER_COMPUTE_*`, or
+///   `BGFX_BUFFER_DRAW_INDIRECT` flags.
+/// @attention Destination texture must be created with `BGFX_TEXTURE_BLIT_DST` flag.
+/// 
+/// <param name="_id">View id.</param>
+/// <param name="_dst">Destination texture region.</param>
+/// <param name="_src">Source buffer region.</param>
+pub inline fn blitFromBuffer(_id: ViewId, _dst: [*c]const TextureRegion, _src: [*c]const BufferRegion) void {
+    return bgfx_blit_from_buffer(_id, _dst, _src);
+}
+extern fn bgfx_blit_from_buffer(_id: ViewId, _dst: [*c]const TextureRegion, _src: [*c]const BufferRegion) void;
 
 

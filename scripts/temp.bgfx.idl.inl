@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2025 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2026 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
  */
 
@@ -50,6 +50,8 @@ BGFX_C99_STRUCT_SIZE_CHECK(bgfx::InternalData,          bgfx_internal_data_t);
 
 #undef BGFX_C99_STRUCT_SIZE_CHECK
 
+#if BGFX_CONFIG_C99_API
+
 $c99
 
 /* user define functions */
@@ -99,3 +101,5 @@ BGFX_C_API bgfx_interface_vtbl_t* bgfx_get_interface(uint32_t _version)
 
 	return NULL;
 }
+
+#endif // BGFX_CONFIG_C99_API

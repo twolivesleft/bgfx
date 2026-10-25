@@ -328,12 +328,12 @@ public:
 		bgfx::Init init;
 		init.type     = args.m_type;
 		init.vendorId = args.m_pciId;
-		init.platformData.nwh  = entry::getNativeWindowHandle(entry::kDefaultWindowHandle);
-		init.platformData.ndt  = entry::getNativeDisplayHandle();
+		init.swapChain.nwh     = entry::getNativeWindowHandle(entry::kDefaultWindowHandle);
+		init.swapChain.ndt     = entry::getNativeDisplayHandle();
 		init.platformData.type = entry::getNativeWindowHandleType();
-		init.resolution.width  = m_width;
-		init.resolution.height = m_height;
-		init.resolution.reset  = m_reset;
+		init.swapChain.width  = m_width;
+		init.swapChain.height = m_height;
+		init.reset  = m_reset;
 		bgfx::init(init);
 
 		// Enable debug text.
@@ -516,7 +516,9 @@ public:
 			m_hiZDepthBuffer = bgfx::createFrameBuffer(uint16_t(m_hiZwidth), uint16_t(m_hiZheight), bgfx::TextureFormat::D32F, tsFlags);
 
 			bgfx::TextureHandle buffer = bgfx::createTexture2D(uint16_t(m_hiZwidth), uint16_t(m_hiZheight), true, 1, bgfx::TextureFormat::R32F, BGFX_TEXTURE_COMPUTE_WRITE | tsFlags);
-			m_hiZBuffer = bgfx::createFrameBuffer(1, &buffer, true);
+			bgfx::Attachment at;
+			at.init(buffer, bgfx::Access::Write, 0, 1, 0, BGFX_ATTACHMENT_NONE);
+			m_hiZBuffer = bgfx::createFrameBuffer(1, &at, true);
 
 			//how many mip will the Hi Z buffer have?
 			m_noofHiZMips = (uint8_t)(1 + bx::floor(bx::log2(float(bx::max(m_hiZwidth, m_hiZheight) ) ) ) );
@@ -695,12 +697,12 @@ public:
 			BGFX_BUFFER_COMPUTE_READ | BGFX_BUFFER_INDEX32
 		);
 
-		m_timeOffset = bx::getHPCounter();
-
 		m_useIndirect = true;
 		m_firstFrame = true;
 
 		imguiCreate();
+
+		m_frameTime.reset();
 	}
 
 	int shutdown() override
@@ -861,7 +863,7 @@ public:
 		bgfx::setUniform(u_inputRTSize, inputRendertargetSize);
 
 		// store a rounded-up, power of two instance count for the stream compaction step
-		float noofInstancesPowOf2 = bx::pow(2.0f, bx::floor(bx::log(m_totalInstancesCount) / bx::log(2.0f) ) + 1.0f);
+		float noofInstancesPowOf2 = bx::pow(2.0f, bx::floor(bx::log(float(m_totalInstancesCount) ) / bx::log(2.0f) ) + 1.0f);
 
 		float cullingConfig[4] =
 		{
@@ -980,6 +982,10 @@ public:
 	{
 		if (!entry::processEvents(m_width, m_height, m_debug, m_reset, &m_mouseState) )
 		{
+			m_frameTime.frame();
+			const float time      = bx::toSeconds<float>(m_frameTime.getDurationTime() );
+			const float deltaTime = bx::toSeconds<float>(m_frameTime.getDeltaTime() );
+
 			imguiBeginFrame(m_mouseState.m_mx
 				,  m_mouseState.m_my
 				, (m_mouseState.m_buttons[entry::MouseButton::Left  ] ? IMGUI_MBUT_LEFT   : 0)
@@ -1014,13 +1020,6 @@ public:
 			// if no other draw calls are submitted to view 0.
 			bgfx::touch(0);
 
-			int64_t now = bx::getHPCounter();
-			static int64_t last = now;
-			const int64_t frameTime = now - last;
-			last = now;
-			const double freq = double(bx::getHPFrequency());
-			const float deltaTimeSec = float(double(frameTime) / freq);
-
 			// Camera.
 			const bool mouseOverGui = ImGui::MouseOverArea();
 			m_mouse.update(float(m_mouseState.m_mx), float(m_mouseState.m_my), m_mouseState.m_mz, m_width, m_height);
@@ -1040,19 +1039,23 @@ public:
 				}
 			}
 
-			m_camera.update(deltaTimeSec);
+			m_camera.update(deltaTime);
 
 			// Get renderer capabilities info.
 			const bgfx::Caps* caps = bgfx::getCaps();
 
-			// Check if instancing is supported.
-			if (0 == (BGFX_CAPS_INSTANCING & caps->supported) )
+			// Check if instancing, compute and draw indirect are supported.
+			const uint64_t requiredCaps = 0
+				| BGFX_CAPS_COMPUTE
+				| BGFX_CAPS_DRAW_INDIRECT
+				;
+
+			if (requiredCaps != (requiredCaps & caps->supported) )
 			{
-				// When instancing is not supported by GPU, implement alternative
-				// code path that doesn't use instancing.
-				float time = (float)((bx::getHPCounter() - m_timeOffset) / double(bx::getHPFrequency()));
+				// When instancing, compute or draw indirect is not supported by GPU,
+				// implement alternative code path that doesn't use them.
 				bool blink = uint32_t(time*3.0f)&1;
-				bgfx::dbgTextPrintf(0, 0, blink ? 0x1f : 0x01, " Instancing is not supported by GPU. ");
+				bgfx::dbgTextPrintf(0, 0, blink ? 0x1f : 0x01, " Instancing, compute and draw indirect are not supported by GPU. ");
 			}
 			else
 			{
@@ -1133,8 +1136,6 @@ public:
 
 	static const uint16_t s_maxNoofInstances = 2048;
 
-	int64_t m_timeOffset;
-
 	uint8_t m_noofHiZMips;
 
 	bool m_useIndirect;
@@ -1142,6 +1143,8 @@ public:
 
 	Camera m_camera;
 	Mouse m_mouse;
+
+	FrameTime m_frameTime;
 };
 
 } // namespace

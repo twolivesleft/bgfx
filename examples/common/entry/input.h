@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2025 Branimir Karadzic. All rights reserved.
+ * Copyright 2010-2026 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
  */
 
@@ -59,6 +59,9 @@ void inputSetKeyState(entry::Key::Enum  _key, uint8_t _modifiers, bool _down);
 
 ///
 bool inputGetKeyState(entry::Key::Enum _key, uint8_t* _modifiers = NULL);
+
+///
+void inputReleaseKeys();
 
 ///
 uint8_t inputGetModifiersState();

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2025 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2026 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
  */
 
@@ -7,6 +7,7 @@
 #define IMGUI_H_HEADER_GUARD
 
 #include <bgfx/bgfx.h>
+#include <bx/bx.h>
 #include <dear-imgui/imgui.h>
 #include <iconfontheaders/icons_kenney.h>
 #include <iconfontheaders/icons_font_awesome.h>
@@ -30,8 +31,22 @@ namespace bx { struct AllocatorI; }
 void imguiCreate(float _fontSize = 18.0f, bx::AllocatorI* _allocator = NULL);
 void imguiDestroy();
 
-void imguiBeginFrame(int32_t _mx, int32_t _my, uint8_t _button, int32_t _scroll, uint16_t _width, uint16_t _height, int _inputChar = -1, bgfx::ViewId _view = 255);
+void imguiBeginFrame(int32_t _mx, int32_t _my, uint8_t _button, int32_t _scroll, uint16_t _width, uint16_t _height, int _inputChar = -1, bgfx::ViewId _view = UINT16_MAX);
 void imguiEndFrame();
+
+struct ImguiOutput
+{
+	enum Enum
+	{
+		Srgb,
+		Linear,
+		Pq,
+
+		Count
+	};
+};
+
+void imguiSetOutput(ImguiOutput::Enum _output, float _white);
 
 namespace entry { class AppI; }
 void showExampleDialog(entry::AppI* _app, const char* _errorText = NULL);
@@ -41,14 +56,26 @@ namespace ImGui
 #define IMGUI_FLAGS_NONE        UINT8_C(0x00)
 #define IMGUI_FLAGS_ALPHA_BLEND UINT8_C(0x01)
 
+	struct TextureBgfx
+	{
+		bgfx::TextureHandle handle;
+		uint8_t  flags;
+		uint8_t  mip;
+		uint32_t unused;
+	};
+
 	///
 	inline ImTextureID toId(bgfx::TextureHandle _handle, uint8_t _flags, uint8_t _mip)
 	{
-		union { struct { bgfx::TextureHandle handle; uint8_t flags; uint8_t mip; } s; ImTextureID id; } tex;
-		tex.s.handle = _handle;
-		tex.s.flags  = _flags;
-		tex.s.mip    = _mip;
-		return tex.id;
+		TextureBgfx tex
+		{
+			.handle = _handle,
+			.flags  = _flags,
+			.mip    = _mip,
+			.unused = 0,
+		};
+
+		return bx::bitCast<ImTextureID>(tex);
 	}
 
 	// Helper function for passing bgfx::TextureHandle to ImGui::Image.
@@ -119,12 +146,6 @@ namespace ImGui
 //			|| ImGuizmo::IsOver()
 			;
 	}
-
-	///
-	void PushEnabled(bool _enabled);
-
-	///
-	void PopEnabled();
 
 } // namespace ImGui
 

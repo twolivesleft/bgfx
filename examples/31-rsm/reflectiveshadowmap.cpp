@@ -208,12 +208,12 @@ public:
 		bgfx::Init init;
 		init.type     = args.m_type;
 		init.vendorId = args.m_pciId;
-		init.platformData.nwh  = entry::getNativeWindowHandle(entry::kDefaultWindowHandle);
-		init.platformData.ndt  = entry::getNativeDisplayHandle();
+		init.swapChain.nwh     = entry::getNativeWindowHandle(entry::kDefaultWindowHandle);
+		init.swapChain.ndt     = entry::getNativeDisplayHandle();
 		init.platformData.type = entry::getNativeWindowHandleType();
-		init.resolution.width  = m_width;
-		init.resolution.height = m_height;
-		init.resolution.reset  = m_reset;
+		init.swapChain.width  = m_width;
+		init.swapChain.height = m_height;
+		init.reset  = m_reset;
 		bgfx::init(init);
 
 		// Enable debug text.
@@ -373,6 +373,8 @@ public:
 		m_caps = bgfx::getCaps();
 
 		imguiCreate();
+
+		m_frameTime.reset();
 	}
 
 	int shutdown() override
@@ -435,13 +437,8 @@ public:
 	{
 		if (!entry::processEvents(m_width, m_height, m_debug, m_reset, &m_mouseState) )
 		{
-			// Update frame timer
-			int64_t now = bx::getHPCounter();
-			static int64_t last = now;
-			const int64_t frameTime = now - last;
-			last = now;
-			const double freq = double(bx::getHPFrequency());
-			const float deltaTime = float(frameTime/freq);
+			m_frameTime.frame();
+			const float deltaTime = bx::toSeconds<float>(m_frameTime.getDeltaTime() );
 
 			// Update camera
 			cameraUpdate(deltaTime*0.15f, m_mouseState, ImGui::MouseOverArea() );
@@ -749,6 +746,8 @@ public:
 
 	float m_rsmAmount; // Amount of rsm
 	float m_vplRadius; // Radius of virtual point light
+
+	FrameTime m_frameTime;
 };
 
 } // namespace

@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2025 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2026 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
  */
 
@@ -9,17 +9,10 @@
 
 #import <Foundation/Foundation.h>
 #import <UIKit/UIKit.h>
-#import <QuartzCore/CAEAGLLayer.h>
+#import <QuartzCore/CAMetalLayer.h>
 
-#if __IPHONE_8_0 && !TARGET_IPHONE_SIMULATOR  // check if sdk/target supports metal
-#   import <Metal/Metal.h>
-#   import <QuartzCore/CAMetalLayer.h>
-#   define HAS_METAL_SDK
-#endif
+#include <bgfx/bgfx.h>
 
-#include <bgfx/platform.h>
-
-#include <bx/uint32_t.h>
 #include <bx/thread.h>
 
 namespace entry
@@ -191,21 +184,7 @@ using namespace entry;
 
 + (Class)layerClass
 {
-#ifdef HAS_METAL_SDK
-	static id<MTLDevice> device = NULL;
-	Class metalClass = NSClassFromString(@"CAMetalLayer");    //is metal runtime sdk available
-	if ( metalClass != nil)
-	{
-		device = MTLCreateSystemDefaultDevice(); // is metal supported on this device (is there a better way to do this - without creating device ?)
-		if (NULL != device)
-		{
-			[device retain];
-			return metalClass;
-		}
-	}
-#endif
-
-	return [CAEAGLLayer class];
+	return [CAMetalLayer class];
 }
 
 - (id)initWithFrame:(CGRect)rect

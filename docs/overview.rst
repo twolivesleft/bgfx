@@ -21,13 +21,11 @@ Supported rendering backends
 -  Direct3D 12
 -  GNM (only for licensed PS4 developers, search DevNet forums for source)
 -  Metal
--  OpenGL 2.1
--  OpenGL 3.1+
--  OpenGL ES 2
--  OpenGL ES 3.1
+-  OpenGL 4.3+
+-  OpenGL ES 3.0+
 -  Vulkan
--  WebGL 1.0
 -  WebGL 2.0
+-  WebGPU (Dawn Native only)
 
 Supported Platforms
 ~~~~~~~~~~~~~~~~~~~
@@ -61,6 +59,7 @@ Supported Languages
 -  `Go language API bindings <https://github.com/james4k/go-bgfx>`__
 -  `Haskell language API bindings <https://github.com/haskell-game/bgfx>`__
 -  `Lightweight Java Game Library 3 bindings <https://github.com/LWJGL/lwjgl3#lwjgl---lightweight-java-game-library-3>`__
+-  `Java language API bindings <https://github.com/bkaradzic/bgfx/tree/master/bindings/java>`__
 -  `Lua language API bindings <https://github.com/cloudwu/lua-bgfx>`__
 -  `Nim language API bindings <https://github.com/Halsys/nim-bgfx>`__
 -  `Pascal language API bindings <https://github.com/Akira13641/PasBGFX>`__
@@ -82,7 +81,7 @@ Contact
  - `GitHub Discussions <https://github.com/bkaradzic/bgfx/discussions>`__
  - `Discord Chat <https://discord.gg/9eMbv7J>`__
  - GitHub `@bkaradzic <https://github.com/bkaradzic>`__
- - Twitter `@bkaradzic <https://twitter.com/bkaradzic>`__
+ - X `@bkaradzic <https://x.com/bkaradzic>`__
 
 Debugging and Profiling
 -----------------------
@@ -233,7 +232,9 @@ Chronological order:
  - Raziel Alphadios (`@RazielXYZ <https://github.com/RazielXYZ>`__) - Various fixes and improvements.
  - IchorDev (`@IchorDev <https://github.com/ichordev>`__) - Improved D language bindings.
  - Martijn Courteaux (`@Martijn Courteaux <https://github.com/mcourteaux>`__) - Various fixes and improvements.
- - JazielGuerrero (`@JazielGuerrero <https://github.com/JazielGuerrero>`__) - C3 language bindings.
+ - Jaziel Guerrero (`@JazielGuerrero <https://github.com/JazielGuerrero>`__) - C3 language bindings.
+ - gamecoder-nz (`@gamecoder-nz <Mhttps://github.com/gamecoder-nz>`__) - "Getting Started with BGFX"
+   tutorial series on Youtube.
 
 and `others <https://github.com/bkaradzic/bgfx/graphs/contributors>`__...
 

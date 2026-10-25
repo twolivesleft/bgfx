@@ -1,5 +1,5 @@
 --
--- Copyright 2010-2025 Branimir Karadzic. All rights reserved.
+-- Copyright 2010-2026 Branimir Karadzic. All rights reserved.
 -- License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
 --
 
@@ -57,6 +57,7 @@ function bgfxProjectBase(_kind, _defines)
 		configuration { "mingw*" }
 			linkoptions {
 				"-shared",
+				"-Wl,-u,_fpreset",
 			}
 
 		configuration { "linux-*" }
@@ -71,6 +72,9 @@ function bgfxProjectBase(_kind, _defines)
 
 		configuration { "android*" }
 			targetextension ".so"
+			linkoptions {
+				"-shared",
+			}
 
 		configuration { "android*" ,"Debug"}
 			linkoptions {
@@ -136,6 +140,9 @@ function bgfxProjectBase(_kind, _defines)
 			"-Wno-microsoft-const-init", -- default initialization of an object of const type '' without a user-provided default constructor is a Microsoft extension
 		}
 
+	configuration { "ios* or tvos* or xros*" }
+		buildoptions { "-x objective-c++" }
+
 	configuration { "osx*" }
 		buildoptions { "-x objective-c++" }  -- additional build option for osx
 		linkoptions {
@@ -145,6 +152,9 @@ function bgfxProjectBase(_kind, _defines)
 			"-framework QuartzCore",
 			"-weak_framework Metal",
 			"-weak_framework MetalKit",
+			"-weak_framework VideoToolbox",
+			"-weak_framework CoreMedia",
+			"-weak_framework CoreVideo",
 		}
 
 	configuration { "not NX32", "not NX64" }
@@ -198,33 +208,9 @@ function bgfxProjectBase(_kind, _defines)
 			path.join(BGFX_DIR, "src/shader**.cpp"),
 			path.join(BGFX_DIR, "src/topology.cpp"),
 			path.join(BGFX_DIR, "src/vertexlayout.cpp"),
+			path.join(BGFX_DIR, "src/video_**.cpp"),
 		}
-
-		configuration { "xcode* or osx* or ios*" }
-			files {
-				path.join(BGFX_DIR, "src/amalgamated.mm"),
-			}
-
-			excludes {
-				path.join(BGFX_DIR, "src/renderer_**.mm"),
-				path.join(BGFX_DIR, "src/amalgamated.cpp"),
-			}
-
-		configuration { "not (xcode* or osx* or ios*)" }
-			excludes {
-				path.join(BGFX_DIR, "src/**.mm"),
-			}
-
-		configuration {}
-
 	else
-		configuration { "xcode* or osx* or ios*" }
-			files {
-				path.join(BGFX_DIR, "src/renderer_**.mm"),
-			}
-
-		configuration {}
-
 		excludes {
 			path.join(BGFX_DIR, "src/amalgamated.**"),
 		}

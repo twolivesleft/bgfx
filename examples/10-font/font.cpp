@@ -71,12 +71,12 @@ public:
 		bgfx::Init init;
 		init.type     = args.m_type;
 		init.vendorId = args.m_pciId;
-		init.platformData.nwh  = entry::getNativeWindowHandle(entry::kDefaultWindowHandle);
-		init.platformData.ndt  = entry::getNativeDisplayHandle();
+		init.swapChain.nwh     = entry::getNativeWindowHandle(entry::kDefaultWindowHandle);
+		init.swapChain.ndt     = entry::getNativeDisplayHandle();
 		init.platformData.type = entry::getNativeWindowHandleType();
-		init.resolution.width  = m_width;
-		init.resolution.height = m_height;
-		init.resolution.reset  = m_reset;
+		init.swapChain.width  = m_width;
+		init.swapChain.height = m_height;
+		init.reset  = m_reset;
 		bgfx::init(init);
 
 		// Enable debug text.
@@ -193,6 +193,8 @@ public:
 
 		// Create a transient buffer for real-time data.
 		m_transientText = m_textBufferManager->createTextBuffer(FONT_TYPE_ALPHA, BufferType::Transient);
+
+		m_frameTime.reset();
 	}
 
 	virtual int shutdown() override
@@ -228,6 +230,8 @@ public:
 	{
 		if (!entry::processEvents(m_width, m_height, m_debug, m_reset, &m_mouseState) )
 		{
+			m_frameTime.frame();
+
 			imguiBeginFrame(m_mouseState.m_mx
 				,  m_mouseState.m_my
 				, (m_mouseState.m_buttons[entry::MouseButton::Left  ] ? IMGUI_MBUT_LEFT   : 0)
@@ -246,16 +250,9 @@ public:
 			// if no other draw calls are submitted to view 0.
 			bgfx::touch(0);
 
-			int64_t now = bx::getHPCounter();
-			static int64_t last = now;
-			const int64_t frameTime = now - last;
-			last = now;
-			const double freq = double(bx::getHPFrequency() );
-			const double toMs = 1000.0 / freq;
-
 			// Use transient text to display debug information.
 			char fpsText[64];
-			bx::snprintf(fpsText, BX_COUNTOF(fpsText), "Frame: % 7.3f[ms]", double(frameTime) * toMs);
+			bx::snprintf(fpsText, BX_COUNTOF(fpsText), "Frame: % 7.3f[ms]", bx::toMilliseconds<double>(m_frameTime.getDeltaTime() ) );
 
 			m_textBufferManager->clearTextBuffer(m_transientText);
 			m_textBufferManager->setPenPosition(m_transientText, m_width - 150.0f, 10.0f);
@@ -328,6 +325,8 @@ public:
 
 	TrueTypeHandle m_fontFiles[numFonts];
 	FontHandle m_fonts[numFonts];
+
+	FrameTime m_frameTime;
 };
 
 } // namespace
