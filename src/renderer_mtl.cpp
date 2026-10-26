@@ -246,7 +246,7 @@ namespace bgfx { namespace mtl
 BX_PRAGMA_DIAGNOSTIC_PUSH();
 BX_PRAGMA_DIAGNOSTIC_IGNORED_CLANG("-Wunguarded-availability-new");
 
-	static TextureFormatInfo s_textureFormat[] =
+	static const TextureFormatInfo s_defaultTextureFormat[] =
 	{
 #define $0 MTL::TextureSwizzleZero
 #define $1 MTL::TextureSwizzleOne
@@ -366,7 +366,9 @@ BX_PRAGMA_DIAGNOSTIC_IGNORED_CLANG("-Wunguarded-availability-new");
 #undef $B
 #undef $A
 	};
-	static_assert(TextureFormat::Count == BX_COUNTOF(s_textureFormat) );
+	static_assert(TextureFormat::Count == BX_COUNTOF(s_defaultTextureFormat) );
+	static TextureFormatInfo* instanceTextureFormats();
+#define s_textureFormat (instanceTextureFormats())
 
 BX_PRAGMA_DIAGNOSTIC_POP();
 
@@ -851,7 +853,19 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 	};
 
 	struct RendererContextMtl;
-	static RendererContextMtl* s_renderMtl;
+	struct MetalInstanceState
+	{
+		RendererContextMtl* renderer = NULL;
+		TextureFormatInfo formats[TextureFormat::Count];
+		ViewState viewState;
+		int64_t minTime = INT64_MAX, maxTime = 0, nextStats = 0;
+		uint32_t maxGpuLatency = 0;
+		double maxGpuElapsed = 0;
+		MetalInstanceState() { bx::memCopy(formats, s_defaultTextureFormat, sizeof(formats)); }
+	};
+	static MetalInstanceState& metalInstance() { return *static_cast<MetalInstanceState*>(instanceRendererData()); }
+	static TextureFormatInfo* instanceTextureFormats() { return metalInstance().formats; }
+#define s_renderMtl (metalInstance().renderer)
 
 	static uint32_t getBufferBindOffset(const Binding& _bind, uint32_t _size)
 	{
@@ -3970,13 +3984,16 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 
 	RendererContextI* rendererCreate(const Init& _init)
 	{
+		instanceRendererData() = new MetalInstanceState;
 		s_renderMtl = BX_NEW(g_allocator, RendererContextMtl);
 		if (!s_renderMtl->init(_init) )
 		{
 			bx::deleteObject(g_allocator, s_renderMtl);
 			s_renderMtl = NULL;
 		}
-		return s_renderMtl;
+		RendererContextMtl* result = s_renderMtl;
+		if (!result) { delete &metalInstance(); instanceRendererData() = NULL; }
+		return result;
 	}
 
 	void rendererDestroy()
@@ -3984,6 +4001,8 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 		s_renderMtl->shutdown();
 		bx::deleteObject(g_allocator, s_renderMtl);
 		s_renderMtl = NULL;
+		delete &metalInstance();
+		instanceRendererData() = NULL;
 	}
 
 	void writeString(bx::WriterI* _writer, const char* _str)
@@ -5821,7 +5840,7 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 
 		bx::memSet(m_sampling, 0, sizeof(m_sampling) );
 
-		MTL::Device* device = s_renderMtl->m_device;
+		MTL::Device* device = m_device = s_renderMtl->m_device;
 
 		if (!device->supportsCounterSampling(MTL::CounterSamplingPointAtStageBoundary) )
 		{
@@ -5983,7 +6002,7 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 
 		MTL::Timestamp cpuTimestamp = 0;
 		MTL::Timestamp gpuTimestamp = 0;
-		s_renderMtl->m_device->sampleTimestamps(&cpuTimestamp, &gpuTimestamp);
+		m_device->sampleTimestamps(&cpuTimestamp, &gpuTimestamp);
 
 		const double gpuSpan = double(gpuTimestamp - sampling.m_gpuTimestamp);
 		const double cpuSpan = double(cpuTimestamp - sampling.m_cpuTimestamp);
@@ -6433,7 +6452,7 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 		RenderBind currentBind;
 		currentBind.clear();
 
-		static ViewState viewState;
+		ViewState& viewState = metalInstance().viewState;
 		viewState.reset(_render);
 		uint32_t blendFactor = 0;
 
@@ -7531,13 +7550,13 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 		int64_t timeEnd = bx::getHPCounter();
 		int64_t frameTime = timeEnd - timeBegin;
 
-		static int64_t min = frameTime;
-		static int64_t max = frameTime;
+		int64_t& min = metalInstance().minTime;
+		int64_t& max = metalInstance().maxTime;
 		min = bx::min<int64_t>(min, frameTime);
 		max = bx::max<int64_t>(max, frameTime);
 
-		static uint32_t maxGpuLatency = 0;
-		static double   maxGpuElapsed = 0.0f;
+		uint32_t& maxGpuLatency = metalInstance().maxGpuLatency;
+		double& maxGpuElapsed = metalInstance().maxGpuElapsed;
 		double elapsedGpuMs = 0.0;
 
 		do
@@ -7593,7 +7612,7 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 
 			TextVideoMem& tvm = m_textVideoMem;
 
-			static int64_t next = timeEnd;
+			int64_t& next = metalInstance().nextStats;
 
 			if (timeEnd >= next)
 			{

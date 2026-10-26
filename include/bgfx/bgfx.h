@@ -32,6 +32,17 @@ namespace bgfx
 {
 	struct CallbackI;
 
+	/// Independent renderer state. Explicit instances currently support Metal in
+	/// single-threaded BGFX builds. Serialize each instance externally; different
+	/// instances may execute concurrently. Handles must never cross instances.
+	struct Instance;
+	Instance* createInstance();
+	void destroyInstance(Instance* _instance); // after shutdown(), with no callers
+	Instance* getCurrentInstance();
+	Instance* setCurrentInstance(Instance* _instance); // returns previous TLS binding
+	/// Optional queue-local fallback, installed once before starting any instances.
+	void setInstanceResolver(Instance* (*_resolver)());
+
 	/// Fatal error enum.
 	///
 	/// @attention C99's equivalent binding is `bgfx_fatal_t`.

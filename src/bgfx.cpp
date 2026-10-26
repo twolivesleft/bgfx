@@ -301,22 +301,74 @@ namespace bgfx
 #endif // BGFX_CONFIG_MEMORY_TRACKING
 	};
 
-	static CallbackStub*  s_callbackStub  = NULL;
-	static AllocatorStub* s_allocatorStub = NULL;
-	static bool s_graphicsDebuggerPresent = false;
+	struct Instance
+	{
+		CallbackStub* callbackStub = NULL;
+		AllocatorStub* allocatorStub = NULL;
+		bool graphicsDebuggerPresent = false;
+		CallbackI* callback = NULL;
+		bx::AllocatorI* allocator = NULL;
+		Caps caps = {};
+		Context* context = NULL;
+		uint32_t threadIndex = 0;
+		bool renderFrameCalled = false;
+		InternalData internalData = {};
+		PlatformData platformData;
+		BlitFallback* blitFallback = NULL;
+		DepthResolve* depthResolve = NULL;
+		VideoDecode* videoDecode = NULL;
+		void* rendererData = NULL;
+	};
 
-	CallbackI* g_callback = NULL;
-	bx::AllocatorI* g_allocator = NULL;
-
-	Caps g_caps;
-
+	static Instance s_defaultInstance;
+	static thread_local Instance* s_currentInstance = NULL;
+	static Instance* (*s_instanceResolver)() = NULL;
+	Instance* getCurrentInstance()
+	{
+		if (s_currentInstance) return s_currentInstance;
+		if (s_instanceResolver)
+			if (Instance* instance = s_instanceResolver()) return instance;
+		return &s_defaultInstance;
+	}
+	Instance* setCurrentInstance(Instance* _instance)
+	{
+		Instance* previous = s_currentInstance;
+		s_currentInstance = _instance;
+		return previous;
+	}
+	void setInstanceResolver(Instance* (*_resolver)()) { s_instanceResolver = _resolver; }
+	Instance* createInstance()
+	{
+#if BGFX_CONFIG_MULTITHREADED
+		return NULL; // Internal render-thread binding is not implemented yet.
+#else
+		return new Instance;
+#endif
+	}
+	void destroyInstance(Instance* _instance)
+	{
+		BX_ASSERT(_instance && _instance != &s_defaultInstance && !_instance->context, "Shutdown the instance before destroying it.");
+		delete _instance;
+	}
+	void*& instanceRendererData() { return getCurrentInstance()->rendererData; }
+	InternalData& instance_g_internalData() { return getCurrentInstance()->internalData; }
+	PlatformData& instance_g_platformData() { return getCurrentInstance()->platformData; }
+	CallbackI*& instance_g_callback() { return getCurrentInstance()->callback; }
+	bx::AllocatorI*& instance_g_allocator() { return getCurrentInstance()->allocator; }
+	Caps& instance_g_caps() { return getCurrentInstance()->caps; }
+	BlitFallback*& instance_g_blitFallback() { return getCurrentInstance()->blitFallback; }
+	DepthResolve*& instance_g_depthResolve() { return getCurrentInstance()->depthResolve; }
+	VideoDecode*& instance_g_videoDecode() { return getCurrentInstance()->videoDecode; }
+#define s_callbackStub (getCurrentInstance()->callbackStub)
+#define s_allocatorStub (getCurrentInstance()->allocatorStub)
+#define s_graphicsDebuggerPresent (getCurrentInstance()->graphicsDebuggerPresent)
+#define s_ctx (getCurrentInstance()->context)
 #if BGFX_CONFIG_MULTITHREADED
 	static BX_THREAD_LOCAL uint32_t s_threadIndex(0);
 #else
-	static uint32_t s_threadIndex(0);
-#endif // BGFX_CONFIG_MULTITHREADED
-
-	static Context* s_ctx = NULL;
+#define s_threadIndex (getCurrentInstance()->threadIndex)
+#endif
+#define s_renderFrameCalled (getCurrentInstance()->renderFrameCalled)
 
 	const char* getViewName(const Frame* _frame, ViewId _view)
 	{
@@ -354,9 +406,7 @@ namespace bgfx
 
 		return m_view[m_viewUsedOffset[word] + bx::countBits(used & (bit - 1) )];
 	}
-	static bool s_renderFrameCalled = false;
-	InternalData g_internalData;
-	PlatformData g_platformData;
+
 
 	static Handle::TypeName s_typeName[] =
 	{
@@ -1080,7 +1130,7 @@ namespace bgfx
 	}
 #endif // BGFX_CONFIG_MIP_GEN_FALLBACK
 
-	BlitFallback* g_blitFallback = NULL;
+
 
 #if BGFX_CONFIG_BLIT_FALLBACK
 	void BlitFallback::init()
@@ -1141,7 +1191,7 @@ namespace bgfx
 	}
 #endif // BGFX_CONFIG_BLIT_FALLBACK
 
-	DepthResolve* g_depthResolve = NULL;
+
 
 	void DepthResolve::init()
 	{
@@ -1193,7 +1243,7 @@ namespace bgfx
 	}
 
 #if BGFX_CONFIG_VIDEO
-	VideoDecode* g_videoDecode = NULL;
+
 
 	void VideoDecode::init()
 	{
@@ -2668,7 +2718,7 @@ namespace bgfx
 		}
 
 		g_caps.rendererType = m_renderCtx->getRendererType();
-		initAttribTypeSizeTable(g_caps.rendererType);
+		initAttribTypeSizeTable(getRendererType);
 
 		g_caps.supported &= _init.capabilities;
 		g_caps.supported |= 0
@@ -3893,7 +3943,7 @@ namespace bgfx
 				break;
 			}
 
-			s_rendererCreator[renderer].supported = false;
+			// A failed instance must not disable this backend for its peers.
 		}
 
 		return renderCtx;
@@ -4682,6 +4732,10 @@ namespace bgfx
 
 	bool init(const Init& _userInit)
 	{
+		if (getCurrentInstance() != &s_defaultInstance
+		&& (_userInit.type != RendererType::Metal || BGFX_CONFIG_MULTITHREADED))
+			return false;
+
 		if (NULL != s_ctx)
 		{
 			BX_TRACE("bgfx is already initialized.");
@@ -4689,6 +4743,7 @@ namespace bgfx
 		}
 
 		Init init = _userInit;
+		if (getCurrentInstance() != &s_defaultInstance) init.fallback = false;
 
 		init.limits.maxEncoders       = bx::clamp<uint16_t>(init.limits.maxEncoders, 1, (0 != BGFX_CONFIG_MULTITHREADED) ? 128 : 1);
 		init.limits.numDrawCalls      = alignDrawCalls(bx::max(init.limits.numDrawCalls, kDrawCallBlock) );

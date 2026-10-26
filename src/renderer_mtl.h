@@ -674,6 +674,7 @@ namespace bgfx { namespace mtl
 
 	struct TimerQueryMtl
 	{
+		MTL::Device* m_device = NULL; // Owned by renderer; callbacks finish before teardown.
 		TimerQueryMtl()
 			: m_frameNum(0)
 			, m_control(4)

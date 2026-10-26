@@ -281,8 +281,10 @@ namespace bgfx
 	static constexpr uint32_t kColorMarker   = 0xff'00'00'ff;
 	static constexpr uint32_t kColorWait     = 0xff'8b'94'ff;
 
-	extern InternalData g_internalData;
-	extern PlatformData g_platformData;
+	InternalData& instance_g_internalData();
+#define g_internalData (bgfx::instance_g_internalData())
+	PlatformData& instance_g_platformData();
+#define g_platformData (bgfx::instance_g_platformData())
 	extern void isFrameBufferValid(uint8_t _num, const Attachment* _attachment, bx::Error* _err);
 	extern void isIdentifierValid(const bx::StringView& _name, bx::Error* _err);
 
@@ -661,10 +663,15 @@ namespace bgfx
 		const Memory* m_mem;
 	};
 
+	void*& instanceRendererData();
+
 	extern const uint32_t g_uniformTypeSize[UniformType::Count+1];
-	extern CallbackI* g_callback;
-	extern bx::AllocatorI* g_allocator;
-	extern Caps g_caps;
+	CallbackI*& instance_g_callback();
+#define g_callback (bgfx::instance_g_callback())
+	bx::AllocatorI*& instance_g_allocator();
+#define g_allocator (bgfx::instance_g_allocator())
+	Caps& instance_g_caps();
+#define g_caps (bgfx::instance_g_caps())
 	struct Frame;
 	void formatViewName(char* _out, const Frame* _frame, ViewId _view, const bx::StringView& _type);
 	const char* getViewName(const Frame* _frame, ViewId _view);
@@ -1053,7 +1060,8 @@ namespace bgfx
 		ProgramHandle m_program[Count];
 	};
 
-	extern BlitFallback* g_blitFallback;
+	BlitFallback*& instance_g_blitFallback();
+#define g_blitFallback (bgfx::instance_g_blitFallback())
 
 	///
 	struct DepthResolve
@@ -1072,7 +1080,8 @@ namespace bgfx
 		ProgramHandle m_program[Count] = { BGFX_INVALID_HANDLE, BGFX_INVALID_HANDLE };
 	};
 
-	extern DepthResolve* g_depthResolve;
+	DepthResolve*& instance_g_depthResolve();
+#define g_depthResolve (bgfx::instance_g_depthResolve())
 
 	///
 	struct VideoDecode
@@ -1108,7 +1117,8 @@ namespace bgfx
 		UniformHandle s_texCbCr;
 	};
 
-	extern VideoDecode* g_videoDecode;
+	VideoDecode*& instance_g_videoDecode();
+#define g_videoDecode (bgfx::instance_g_videoDecode())
 
 	struct PredefinedUniform
 	{

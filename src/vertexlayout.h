@@ -12,7 +12,7 @@
 namespace bgfx
 {
 	///
-	void initAttribTypeSizeTable(RendererType::Enum _type);
+	void initAttribTypeSizeTable(RendererType::Enum (*_renderer)());
 
 	///
 	bool isFloat(AttribType::Enum _type);

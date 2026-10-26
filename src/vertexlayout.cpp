@@ -10,6 +10,7 @@
 #include <bx/string.h>
 
 #include "vertexlayout.h"
+#include <atomic>
 
 namespace bgfx
 {
@@ -58,10 +59,17 @@ namespace bgfx
 	};
 	static_assert(BX_COUNTOF(s_attribTypeSize) == RendererType::Count+1);
 
-	void initAttribTypeSizeTable(RendererType::Enum _type)
+	// Keep standalone shader tools independent of bgfx.cpp. Runtime initialization
+	// installs a resolver which reads the calling instance's renderer type.
+	static std::atomic<RendererType::Enum (*)()> s_layoutRenderer { NULL };
+	static RendererType::Enum layoutRenderer()
 	{
-		s_attribTypeSize[0]                   = s_attribTypeSize[_type];
-		s_attribTypeSize[RendererType::Count] = s_attribTypeSize[_type];
+		auto resolver = s_layoutRenderer.load(std::memory_order_relaxed);
+		return resolver ? resolver() : RendererType::Noop;
+	}
+	void initAttribTypeSizeTable(RendererType::Enum (*_renderer)())
+	{
+		s_layoutRenderer.store(_renderer, std::memory_order_relaxed);
 	}
 
 	VertexLayout::VertexLayout()
@@ -73,7 +81,10 @@ namespace bgfx
 
 	VertexLayout& VertexLayout::begin(RendererType::Enum _renderer)
 	{
-		m_hash = _renderer; // use hash to store renderer type while building VertexLayout.
+		// Noop is begin()'s default and, like Count, historically selected the
+		// initialized renderer's packing table. Resolve both per instance.
+		m_hash = (_renderer == RendererType::Noop || _renderer == RendererType::Count)
+			? layoutRenderer() : _renderer; // use hash to store renderer type while building VertexLayout.
 		m_stride = 0;
 		bx::memSet(m_attributes, 0xff, sizeof(m_attributes) );
 		bx::memSet(m_offset, 0, sizeof(m_offset) );
@@ -701,7 +712,7 @@ namespace bgfx
 				bool normalized;
 				bool asInt;
 				_destLayout.decode(attr, num, type, normalized, asInt);
-				cop.size = (*s_attribTypeSize[0])[type][num-1];
+				cop.size = (*s_attribTypeSize[layoutRenderer()])[type][num-1];
 
 				if (_srcLayout.has(attr) )
 				{
