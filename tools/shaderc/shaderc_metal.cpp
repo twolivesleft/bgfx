@@ -1,9 +1,11 @@
 /*
- * Copyright 2011-2025 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2026 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
  */
 
 #include "shaderc.h"
+
+#if SHADERC_CONFIG_HAS_GLSLANG
 
 #include <iostream> // std::cout
 
@@ -23,7 +25,6 @@ BX_PRAGMA_DIAGNOSTIC_IGNORED_CLANG_GCC("-Wshadow") // warning: declaration of 'u
 #include <ShaderLang.h>
 #include <ResourceLimits.h>
 #include <SPIRV/GlslangToSpv.h>
-#include <SPIRV/SPVRemapper.h>
 #include <SPIRV/SpvTools.h>
 #include <spirv-tools/optimizer.hpp>
 BX_PRAGMA_DIAGNOSTIC_POP()
@@ -198,6 +199,14 @@ namespace bgfx { namespace metal
 		"a_texcoord5",
 		"a_texcoord6",
 		"a_texcoord7",
+		"a_texcoord8",
+		"a_texcoord9",
+		"a_texcoord10",
+		"a_texcoord11",
+		"a_texcoord12",
+		"a_texcoord13",
+		"a_texcoord14",
+		"a_texcoord15",
 	};
 	static_assert(bgfx::Attrib::Count == BX_COUNTOF(s_attribName) );
 
@@ -226,8 +235,10 @@ namespace bgfx { namespace metal
 		"BgfxISampler3D",
 		"BgfxUSampler3D",
 		"BgfxSamplerCube",
+		"BgfxSamplerCubeArray",
 		"BgfxSamplerCubeShadow",
 		"BgfxSampler2DMS",
+		"BgfxSampler2DMSArray",
 	};
 
 	static uint16_t writeUniformArray(bx::WriterI* _shaderWriter, const UniformArray& uniforms, bool isFragmentShader)
@@ -235,6 +246,8 @@ namespace bgfx { namespace metal
 		uint16_t size = 0;
 
 		bx::ErrorAssert err;
+
+		RawBindings().write(_shaderWriter, &err);
 
 		uint16_t count = uint16_t(uniforms.size());
 		bx::write(_shaderWriter, count, &err);
@@ -334,9 +347,6 @@ namespace bgfx { namespace metal
 
 		switch (_version)
 		{
-		case 1000:
-		case 1110:
-		case 1210:
 		case 2011:
 		case 2111:
 		case 2211:
@@ -346,10 +356,39 @@ namespace bgfx { namespace metal
 		case 3114:
 			return;
 		default:
-			bx::write(_messageWriter, &err, "Warning: Unknown MSL version requested. Returning 1.0 as default.\n");
-			_major = 1;
+			bx::write(_messageWriter, &err, "Warning: Unknown MSL version requested. Returning 3.0 as default.\n");
+			_major = 3;
 			_minor = 0;
 		}
+	}
+
+	static bool isDeclaredUniform(const std::string& _code, const char* _name)
+	{
+		bx::LineReader reader(_code.c_str() );
+		while (!reader.isDone() )
+		{
+			bx::StringView strLine = reader.next();
+
+			if (strFind(strLine, "uniform ").isEmpty() )
+			{
+				continue;
+			}
+
+			bx::StringView lineEnd = strFind(strLine, ";");
+			while (lineEnd.isEmpty() && !reader.isDone() )
+			{
+				bx::StringView nextLine = reader.next();
+				strLine.set(strLine.getPtr(), nextLine.getTerm() );
+				lineEnd = strFind(nextLine, ";");
+			}
+
+			if (!bx::findIdentifierMatch(strLine, _name).isEmpty() )
+			{
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	static bool compile(const Options& _options, uint32_t _version, const std::string& _code, bx::WriterI* _shaderWriter, bx::WriterI* _messageWriter, bool _firstPass)
@@ -376,6 +415,7 @@ namespace bgfx { namespace metal
 			| EShMsgVulkanRules
 			| EShMsgSpvRules
 			| EShMsgDebugInfo
+			| (_options.uses16BitTypes ? EShMsgHlslEnable16BitTypes : EShMsgDefault)
 			);
 
 		shader->setEntryPoint("main");
@@ -425,11 +465,11 @@ namespace bgfx { namespace metal
 
 				if (found)
 				{
-					start = bx::uint32_imax(1, line-10);
+					start = bx::max<int32_t>(1, line-10);
 					end   = start + 20;
 				}
 
-				printCode(_code.c_str(), bx::uint32_satsub(line, 1), start, end, column);
+				printCode(_code.c_str(), bx::satSub<uint32_t>(line, 1u), start, end, column);
 
 				bx::write(_messageWriter, &messageErr, "%s\n", log);
 			}
@@ -532,6 +572,7 @@ namespace bgfx { namespace metal
 				}
 
 				UniformArray uniforms;
+				bool implicitUniform = false;
 
 				{
 					uint16_t count = (uint16_t)program->getNumLiveUniformVariables();
@@ -543,6 +584,17 @@ namespace bgfx { namespace metal
 
 						if (bx::hasSuffix(un.name.c_str(), ".@data") )
 						{
+							continue;
+						}
+
+						if (0 <= program->getUniformBlockIndex(ii)
+						&&  !isDeclaredUniform(_code, un.name.c_str() ) )
+						{
+							bx::write(_messageWriter, &messageErr
+								, "Error: Global '%s' is implicitly a uniform. Declare it 'static const', or make it a local variable.\n"
+								, un.name.c_str()
+								);
+							implicitUniform = true;
 							continue;
 						}
 
@@ -604,19 +656,24 @@ namespace bgfx { namespace metal
 				};
 
 				opt.SetMessageConsumer(print_msg_to_stderr);
-
 				opt.RegisterLegalizationPasses();
+				opt.RegisterPerformancePasses();
 
 				spvtools::ValidatorOptions validatorOptions;
 				validatorOptions.SetBeforeHlslLegalization(true);
 
-				if (!opt.Run(
-					  spirv.data()
-					, spirv.size()
-					, &spirv
-					, validatorOptions
-					, false
-					) )
+				const bool optimized = true
+					&& !implicitUniform
+					&& opt.Run(
+						  spirv.data()
+						, spirv.size()
+						, &spirv
+						, validatorOptions
+						, false
+						)
+					;
+
+				if (!optimized)
 				{
 					compiled = false;
 				}
@@ -639,6 +696,8 @@ namespace bgfx { namespace metal
 							name = name.substr(0, name.length() - 7);
 						}
 
+						const spirv_cross::SPIRType& type = refl.get_type(resource.type_id);
+
 						Uniform un;
 						un.name = name;
 						un.type = UniformType::Sampler;
@@ -646,6 +705,7 @@ namespace bgfx { namespace metal
 						un.num = 0;			// needed?
 						un.regIndex = 0;	// needed?
 						un.regCount = 0;	// needed?
+						un.texDimension = spirvDimToTextureDimensionId(uint32_t(type.image.dim), type.image.arrayed, type.image.ms);
 
 						uniforms.push_back(un);
 					}
@@ -754,13 +814,46 @@ namespace bgfx { namespace metal
 					// insert struct member which declares point size, defaulted to 1
 					if ('v' == _options.shaderType)
 					{
-						const bx::StringView xlatMtlMainOut("xlatMtlMain_out\n{");
-						size_t pos = source.find(xlatMtlMainOut.getPtr() );
-
-						if (pos != std::string::npos)
+						if (msl.get_writes_to_point_size())
 						{
-							pos += xlatMtlMainOut.getLength();
-							source.insert(pos, "\n\tfloat bgfx_metal_pointSize [[point_size]] = 1;");
+							if (source.find("[[point_size]]") == std::string::npos)
+							{
+								const bx::StringView xlatMtlMainOut("xlatMtlMain_out\n{");
+								size_t pos = source.find(xlatMtlMainOut.getPtr());
+
+								if (pos != std::string::npos)
+								{
+									pos += xlatMtlMainOut.getLength();
+									source.insert(pos, "\n\tfloat bgfx_metal_pointSize [[point_size]] = 1;");
+								}
+							}
+						}
+					}
+
+					if ('f' == _options.shaderType
+					&&  source.find("[[sample_mask]]") == std::string::npos)
+					{
+						const bx::StringView structOut("struct xlatMtlMain_out\n{");
+						const bx::StringView localOut("xlatMtlMain_out out = {};");
+
+						const size_t structPos = source.find(structOut.getPtr() );
+						const size_t localPos  = std::string::npos == structPos
+							? std::string::npos
+							: source.find(localOut.getPtr(), structPos)
+							;
+
+						if (std::string::npos != localPos)
+						{
+							source.insert(localPos + localOut.getLength()
+								, "\n\tif (bgfx_sampleMaskEnabled) { out.bgfx_metal_sampleMask = bgfx_sampleMask; }"
+								);
+							source.insert(structPos + structOut.getLength()
+								, "\n\tuint bgfx_metal_sampleMask [[sample_mask, function_constant(bgfx_sampleMaskEnabled)]];"
+								);
+							source.insert(structPos
+								, "constant uint bgfx_sampleMask [[function_constant(0)]];\n"
+								  "constant bool bgfx_sampleMaskEnabled = is_function_constant_defined(bgfx_sampleMask);\n\n"
+								);
 						}
 					}
 
@@ -819,3 +912,18 @@ namespace bgfx { namespace metal
 	}
 
 } // namespace bgfx
+
+#else // SHADERC_CONFIG_HAS_GLSLANG
+
+namespace bgfx
+{
+	bool compileMetalShader(const Options& _options, uint32_t _version, const std::string& _code, bx::WriterI* _shaderWriter, bx::WriterI* _messageWriter)
+	{
+		BX_UNUSED(_options, _version, _code, _shaderWriter);
+		bx::Error messageErr;
+		bx::write(_messageWriter, &messageErr, "Metal compiler (glslang) is not compiled in.\n");
+		return false;
+	}
+} // namespace bgfx
+
+#endif // SHADERC_CONFIG_HAS_GLSLANG

@@ -1,9 +1,11 @@
 /*
- * Copyright 2011-2025 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2026 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
  */
 
 #include "shaderc.h"
+
+#if SHADERC_CONFIG_HAS_GLSLANG
 
 #include <iostream> // std::cout
 
@@ -22,7 +24,6 @@ BX_PRAGMA_DIAGNOSTIC_IGNORED_CLANG_GCC("-Wshadow") // warning: declaration of 'u
 #define ENABLE_OPT 1
 #include <ShaderLang.h>
 #include <ResourceLimits.h>
-#include <SPIRV/SPVRemapper.h>
 #include <SPIRV/GlslangToSpv.h>
 #include <SPIRV/SpvTools.h>
 #include <spirv-tools/optimizer.hpp>
@@ -61,8 +62,6 @@ namespace bgfx
 namespace stl = tinystl;
 
 #include "../../src/shader.h"
-#include "../../src/shader_spirv.h"
-#include "../../3rdparty/khronos/vulkan-local/vulkan.h"
 
 namespace bgfx { namespace spirv
 {
@@ -202,13 +201,21 @@ namespace bgfx { namespace spirv
 		}
 	}
 
-	bgfx::TextureDimension::Enum SpirvDimToTextureViewDimension(spv::Dim _dim, bool _arrayed)
+	bgfx::TextureDimension::Enum SpirvDimToTextureViewDimension(spv::Dim _dim, bool _arrayed, bool _multisampled)
 	{
 		switch (_dim)
 		{
 		case spv::Dim::Dim1D:
 			return bgfx::TextureDimension::Dimension1D;
 		case spv::Dim::Dim2D:
+			if (_multisampled)
+			{
+				return _arrayed
+					? bgfx::TextureDimension::Dimension2DMSArray
+					: bgfx::TextureDimension::Dimension2DMS
+					;
+			}
+
 			return _arrayed
 				? bgfx::TextureDimension::Dimension2DArray
 				: bgfx::TextureDimension::Dimension2D
@@ -303,6 +310,14 @@ namespace bgfx { namespace spirv
 		"a_texcoord5",
 		"a_texcoord6",
 		"a_texcoord7",
+		"a_texcoord8",
+		"a_texcoord9",
+		"a_texcoord10",
+		"a_texcoord11",
+		"a_texcoord12",
+		"a_texcoord13",
+		"a_texcoord14",
+		"a_texcoord15",
 	};
 	static_assert(bgfx::Attrib::Count == BX_COUNTOF(s_attribName) );
 
@@ -331,8 +346,10 @@ namespace bgfx { namespace spirv
 		"BgfxISampler3D",
 		"BgfxUSampler3D",
 		"BgfxSamplerCube",
+		"BgfxSamplerCubeArray",
 		"BgfxSamplerCubeShadow",
 		"BgfxSampler2DMS",
+		"BgfxSampler2DMSArray",
 	};
 
 	static uint16_t writeUniformArray(bx::WriterI* _shaderWriter, const UniformArray& uniforms, bool isFragmentShader)
@@ -340,6 +357,8 @@ namespace bgfx { namespace spirv
 		uint16_t size = 0;
 
 		bx::ErrorAssert err;
+
+		RawBindings().write(_shaderWriter, &err);
 
 		uint16_t count = uint16_t(uniforms.size());
 		bx::write(_shaderWriter, count, &err);
@@ -472,6 +491,7 @@ namespace bgfx { namespace spirv
 			| EShMsgVulkanRules
 			| EShMsgSpvRules
 			| EShMsgDebugInfo
+			| (_options.uses16BitTypes ? EShMsgHlslEnable16BitTypes : EShMsgDefault)
 			);
 
 		shader->setEntryPoint("main");
@@ -526,11 +546,11 @@ namespace bgfx { namespace spirv
 
 				if (found)
 				{
-					start = bx::uint32_imax(1, line-10);
+					start = bx::max<int32_t>(1, line-10);
 					end   = start + 20;
 				}
 
-				printCode(_code.c_str(), bx::uint32_satsub(line, 1), start, end, column);
+				printCode(_code.c_str(), bx::satSub<uint32_t>(line, 1u), start, end, column);
 
 				bx::write(_messageWriter, &messageErr, "%s\n", log);
 			}
@@ -657,6 +677,7 @@ namespace bgfx { namespace spirv
 				}
 
 				UniformArray uniforms;
+				bool implicitUniform = false;
 
 				{
 					uint16_t count = (uint16_t)program->getNumLiveUniformVariables();
@@ -668,6 +689,19 @@ namespace bgfx { namespace spirv
 
 						if (bx::hasSuffix(un.name.c_str(), ".@data") )
 						{
+							continue;
+						}
+
+						const int32_t blockIndex = program->getUniformBlockIndex(ii);
+
+						if (0 <= blockIndex
+						&&  0 != bx::strCmp(program->getUniformBlockName(blockIndex), "UniformBlock") )
+						{
+							bx::write(_messageWriter, &messageErr
+								, "Error: Global '%s' is implicitly a uniform. Declare it 'static const', or make it a local variable.\n"
+								, un.name.c_str()
+								);
+							implicitUniform = true;
 							continue;
 						}
 
@@ -733,19 +767,24 @@ namespace bgfx { namespace spirv
 				};
 
 				opt.SetMessageConsumer(print_msg_to_stderr);
-
 				opt.RegisterLegalizationPasses();
+				opt.RegisterPerformancePasses();
 
 				spvtools::ValidatorOptions validatorOptions;
 				validatorOptions.SetBeforeHlslLegalization(true);
 
-				if (!opt.Run(
-					  spirv.data()
-					, spirv.size()
-					, &spirv
-					, validatorOptions
-					, false
-					) )
+				const bool optimized = true
+					&& !implicitUniform
+					&& opt.Run(
+						  spirv.data()
+						, spirv.size()
+						, &spirv
+						, validatorOptions
+						, false
+						)
+					;
+
+				if (!optimized)
 				{
 					compiled = false;
 				}
@@ -794,7 +833,7 @@ namespace bgfx { namespace spirv
 								);
 
 						un.texComponent = textureComponentTypeToId(SpirvCrossBaseTypeToFormatType(componentType, imageType.depth) );
-						un.texDimension = textureDimensionToId(SpirvDimToTextureViewDimension(imageType.dim, imageType.arrayed) );
+						un.texDimension = textureDimensionToId(SpirvDimToTextureViewDimension(imageType.dim, imageType.arrayed, imageType.ms) );
 						un.texFormat = uint16_t(s_textureFormats[imageType.format]);
 
 						un.regIndex = uint16_t(binding_index);
@@ -823,7 +862,7 @@ namespace bgfx { namespace spirv
 						un.type = type;
 
 						un.texComponent = textureComponentTypeToId(SpirvCrossBaseTypeToFormatType(componentType, imageType.depth) );
-						un.texDimension = textureDimensionToId(SpirvDimToTextureViewDimension(imageType.dim, imageType.arrayed) );
+						un.texDimension = textureDimensionToId(SpirvDimToTextureViewDimension(imageType.dim, imageType.arrayed, imageType.ms) );
 						un.texFormat = uint16_t(s_textureFormats[imageType.format]);
 
 						un.regIndex = uint16_t(binding_index);
@@ -901,3 +940,18 @@ namespace bgfx { namespace spirv
 	}
 
 } // namespace bgfx
+
+#else // SHADERC_HAS_GLSLANG
+
+namespace bgfx
+{
+	bool compileSPIRVShader(const Options& _options, uint32_t _version, const std::string& _code, bx::WriterI* _shaderWriter, bx::WriterI* _messageWriter)
+	{
+		BX_UNUSED(_options, _version, _code, _shaderWriter);
+		bx::Error messageErr;
+		bx::write(_messageWriter, &messageErr, "SPIRV compiler (glslang, spirv-cross and spirv-tools) is not compiled in.\n");
+		return false;
+	}
+} // namespace bgfx
+
+#endif // SHADERC_HAS_GLSLANG

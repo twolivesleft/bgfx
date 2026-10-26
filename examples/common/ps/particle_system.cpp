@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2025 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2026 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
  */
 
@@ -537,7 +537,7 @@ namespace ps
 
 				const uint32_t numVertices = bgfx::getAvailTransientVertexBuffer(m_num*4, PosColorTexCoord0Vertex::ms_layout);
 				const uint32_t numIndices  = bgfx::getAvailTransientIndexBuffer(m_num*6);
-				const uint32_t max = bx::uint32_min(numVertices/4, numIndices/6);
+				const uint32_t max = bx::min(numVertices/4, numIndices/6);
 				BX_WARN(m_num == max
 					, "Truncating transient buffer for particles to maximum available (requested %d, available %d)."
 					, m_num

@@ -1,5 +1,5 @@
 #
-# Copyright 2011-2025 Branimir Karadzic. All rights reserved.
+# Copyright 2011-2026 Branimir Karadzic. All rights reserved.
 # License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
 #
 
@@ -53,6 +53,10 @@ all:
 	@make -s --no-print-directory build -C 47-pixelformats
 	@make -s --no-print-directory build -C 48-drawindirect
 	@make -s --no-print-directory build -C 49-hextile
+	@make -s --no-print-directory build -C 51-gpufont
+	@make -s --no-print-directory build -C 52-layered
+	@make -s --no-print-directory build -C 53-sky2
+	@make -s --no-print-directory build -C 54-s2h
 
 rebuild:
 	@make -s --no-print-directory rebuild -C 01-cubes
@@ -104,6 +108,10 @@ rebuild:
 	@make -s --no-print-directory rebuild -C 47-pixelformats
 	@make -s --no-print-directory rebuild -C 48-drawindirect
 	@make -s --no-print-directory rebuild -C 49-hextile
+	@make -s --no-print-directory rebuild -C 51-gpufont
+	@make -s --no-print-directory rebuild -C 52-layered
+	@make -s --no-print-directory rebuild -C 53-sky2
+	@make -s --no-print-directory rebuild -C 54-s2h
 
 rebuild-embedded:
 	@make -s --no-print-directory rebuild -C 02-metaballs
@@ -113,3 +121,5 @@ rebuild-embedded:
 	@make -s --no-print-directory rebuild -C common/imgui
 	@make -s --no-print-directory rebuild -C common/nanovg
 	@make -s --no-print-directory rebuild -C common/ps
+	@make -s --no-print-directory rebuild -C ../tools/geometryv
+	@make -s --no-print-directory rebuild -C ../tools/texturev

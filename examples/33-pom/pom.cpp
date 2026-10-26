@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2025 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2026 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
  */
 
@@ -114,12 +114,12 @@ public:
 		bgfx::Init init;
 		init.type     = args.m_type;
 		init.vendorId = args.m_pciId;
-		init.platformData.nwh  = entry::getNativeWindowHandle(entry::kDefaultWindowHandle);
-		init.platformData.ndt  = entry::getNativeDisplayHandle();
+		init.swapChain.nwh     = entry::getNativeWindowHandle(entry::kDefaultWindowHandle);
+		init.swapChain.ndt     = entry::getNativeDisplayHandle();
 		init.platformData.type = entry::getNativeWindowHandleType();
-		init.resolution.width  = m_width;
-		init.resolution.height = m_height;
-		init.resolution.reset  = m_reset;
+		init.swapChain.width  = m_width;
+		init.swapChain.height = m_height;
+		init.reset  = m_reset;
 		bgfx::init(init);
 
 		// Enable debug text.
@@ -167,11 +167,12 @@ public:
 
 		imguiCreate();
 
-		m_timeOffset = bx::getHPCounter();
 		m_shading_type = 4;
 		m_show_diffuse_texture = true;
 		m_parallax_scale = 50;
 		m_num_steps = 16;
+
+		m_frameTime.reset();
 	}
 
 	virtual int shutdown() override
@@ -202,17 +203,15 @@ public:
 	{
 		if (!entry::processEvents(m_width, m_height, m_debug, m_reset, &m_mouseState) )
 		{
+			m_frameTime.frame();
+			const float time = bx::toSeconds<float>(m_frameTime.getDurationTime() );
+
 			// Set view 0 default viewport.
 			bgfx::setViewRect(0, 0, 0, uint16_t(m_width), uint16_t(m_height) );
 
 			// This dummy draw call is here to make sure that view 0 is cleared
 			// if no other draw calls are submitted to view 0.
 			bgfx::touch(0);
-
-			int64_t now = bx::getHPCounter();
-			const double freq = double(bx::getHPFrequency() );
-
-			float time = (float)( (now-m_timeOffset)/freq);
 
 			const bx::Vec3 at  = { 0.0f, 0.0f, 1.0f };
 			const bx::Vec3 eye = { 0.0f, 0.0f, 0.0f };
@@ -364,12 +363,13 @@ public:
 	uint32_t m_height;
 	uint32_t m_debug;
 	uint32_t m_reset;
-	int64_t m_timeOffset;
 
 	int32_t m_shading_type;
 	bool    m_show_diffuse_texture;
 	int32_t m_parallax_scale;
 	int32_t m_num_steps;
+
+	FrameTime m_frameTime;
 };
 
 } // namespace

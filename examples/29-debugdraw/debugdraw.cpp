@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2025 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2026 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
  */
 
@@ -10,8 +10,6 @@
 #include <debugdraw/debugdraw.h>
 #include "camera.h"
 #include "imgui/imgui.h"
-
-#include <bx/uint32_t.h>
 
 namespace
 {
@@ -646,7 +644,7 @@ void initB(Shape& _outShape, Shape::Type::Enum _type, bx::Vec3 _pos)
 		{
 			{ bx::add(_pos, {0.0f, -1.0f, 0.1f}) },
 			{ bx::add(_pos, {0.0f,  1.0f, 0.0f}) },
-			0.2f,
+			0.35f,
 		});
 		break;
 
@@ -778,12 +776,12 @@ public:
 		bgfx::Init init;
 		init.type     = args.m_type;
 		init.vendorId = args.m_pciId;
-		init.platformData.nwh  = entry::getNativeWindowHandle(entry::kDefaultWindowHandle);
-		init.platformData.ndt  = entry::getNativeDisplayHandle();
+		init.swapChain.nwh     = entry::getNativeWindowHandle(entry::kDefaultWindowHandle);
+		init.swapChain.ndt     = entry::getNativeDisplayHandle();
 		init.platformData.type = entry::getNativeWindowHandleType();
-		init.resolution.width  = m_width;
-		init.resolution.height = m_height;
-		init.resolution.reset  = m_reset;
+		init.swapChain.width  = m_width;
+		init.swapChain.height = m_height;
+		init.reset  = m_reset;
 		bgfx::init(init);
 
 		// Enable m_debug text.
@@ -796,8 +794,6 @@ public:
 				, 1.0f
 				, 0
 				);
-
-		m_timeOffset = bx::getHPCounter();
 
 		cameraCreate();
 
@@ -818,6 +814,8 @@ public:
 			);
 
 		imguiCreate();
+
+		m_frameTime.reset();
 	}
 
 	virtual int shutdown() override
@@ -863,6 +861,9 @@ public:
 	{
 		if (!entry::processEvents(m_width, m_height, m_debug, m_reset, &m_mouseState) )
 		{
+			m_frameTime.frame();
+			const float deltaTime = bx::toSeconds<float>(m_frameTime.getDeltaTime() );
+
 			imguiBeginFrame(
 				   m_mouseState.m_mx
 				,  m_mouseState.m_my
@@ -898,13 +899,6 @@ public:
 			ImGui::End();
 
 			imguiEndFrame();
-
-			int64_t now = bx::getHPCounter() - m_timeOffset;
-			static int64_t last = now;
-			const int64_t frameTime = now - last;
-			last = now;
-			const double freq = double(bx::getHPFrequency() );
-			const float deltaTime = float(frameTime/freq);
 
 			// Update camera.
 			cameraUpdate(deltaTime, m_mouseState, ImGui::MouseOverArea() );
@@ -1217,7 +1211,7 @@ public:
 	SpriteHandle   m_sprite;
 	GeometryHandle m_bunny;
 
-	int64_t m_timeOffset;
+	FrameTime m_frameTime;
 
 	uint32_t m_width;
 	uint32_t m_height;

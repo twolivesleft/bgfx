@@ -1,11 +1,12 @@
 /*
- * Copyright 2010-2025 Branimir Karadzic. All rights reserved.
+ * Copyright 2010-2026 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
  */
 
 #include <bx/allocator.h>
 #include <bx/filepath.h>
 #include <bx/string.h>
+#include <bx/scanner.h>
 #include <bx/readerwriter.h>
 #include <bx/process.h>
 

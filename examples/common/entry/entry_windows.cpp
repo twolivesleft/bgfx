@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2025 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2026 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
  */
 
@@ -7,14 +7,15 @@
 
 #if ENTRY_CONFIG_USE_NATIVE && BX_PLATFORM_WINDOWS
 
-#include <bgfx/platform.h>
+#include <bgfx/bgfx.h>
 
+#include <bx/allocator.h>
+#include <bx/commandline.h>
 #include <bx/mutex.h>
 #include <bx/handlealloc.h>
 #include <bx/os.h>
 #include <bx/thread.h>
 #include <bx/timer.h>
-#include <bx/uint32_t.h>
 
 #include <tinystl/allocator.h>
 #include <tinystl/string.h>
@@ -132,7 +133,7 @@ namespace entry
 
 		void update(EventQueue& _eventQueue)
 		{
-			int64_t now = bx::getHPCounter();
+			const int64_t now = bx::getHPCounter();
 			static int64_t next = now;
 
 			if (now < next)
@@ -381,7 +382,9 @@ namespace entry
 			s_translateKey[VK_NEXT]       = Key::PageDown;
 			s_translateKey[VK_SNAPSHOT]   = Key::Print;
 			s_translateKey[VK_OEM_PLUS]   = Key::Plus;
+			s_translateKey[VK_ADD]        = Key::Plus;
 			s_translateKey[VK_OEM_MINUS]  = Key::Minus;
+			s_translateKey[VK_SUBTRACT]   = Key::Minus;
 			s_translateKey[VK_OEM_4]      = Key::LeftBracket;
 			s_translateKey[VK_OEM_6]      = Key::RightBracket;
 			s_translateKey[VK_OEM_1]      = Key::Semicolon;
@@ -390,6 +393,7 @@ namespace entry
 			s_translateKey[VK_OEM_PERIOD] = Key::Period;
 			s_translateKey[VK_DECIMAL]    = Key::Period;
 			s_translateKey[VK_OEM_2]      = Key::Slash;
+			s_translateKey[VK_DIVIDE]     = Key::Slash;
 			s_translateKey[VK_OEM_5]      = Key::Backslash;
 			s_translateKey[VK_OEM_3]      = Key::Tilde;
 			s_translateKey[VK_F1]         = Key::F1;
@@ -508,7 +512,7 @@ namespace entry
 			bgfx::renderFrame();
 
 			bx::Thread thread;
-			thread.init(mte.threadFunc, &mte);
+			thread.init(mte.threadFunc, &mte, 0, "Entry Thread");
 			m_init = true;
 
 			m_eventQueue.postSizeEvent(findHandle(m_hwnd[0]), m_width, m_height);
@@ -678,7 +682,7 @@ namespace entry
 							case WMSZ_RIGHT:
 								{
 									float aspectRatio = 1.0f/m_aspectRatio;
-									width  = bx::uint32_max(ENTRY_DEFAULT_WIDTH/4, width);
+									width  = bx::max(ENTRY_DEFAULT_WIDTH/4, width);
 									height = uint32_t(float(width)*aspectRatio);
 								}
 								break;
@@ -686,7 +690,7 @@ namespace entry
 							default:
 								{
 									float aspectRatio = m_aspectRatio;
-									height = bx::uint32_max(ENTRY_DEFAULT_HEIGHT/4, height);
+									height = bx::max(ENTRY_DEFAULT_HEIGHT/4, height);
 									width  = uint32_t(float(height)*aspectRatio);
 								}
 								break;
@@ -735,6 +739,22 @@ namespace entry
 							m_height = height;
 							m_eventQueue.postSizeEvent(handle, m_width, m_height);
 						}
+					}
+					break;
+
+				case WM_SETFOCUS:
+					{
+						WindowHandle handle = findHandle(_hwnd);
+						m_eventQueue.postSuspendEvent(handle, Suspend::WillResume);
+						m_eventQueue.postSuspendEvent(handle, Suspend::DidResume);
+					}
+					break;
+
+				case WM_KILLFOCUS:
+					{
+						WindowHandle handle = findHandle(_hwnd);
+						m_eventQueue.postSuspendEvent(handle, Suspend::WillSuspend);
+						m_eventQueue.postSuspendEvent(handle, Suspend::DidSuspend);
 					}
 					break;
 
@@ -990,7 +1010,7 @@ namespace entry
 			if (!_windowFrame)
 			{
 				float aspectRatio = 1.0f/m_aspectRatio;
-				width  = bx::uint32_max(ENTRY_DEFAULT_WIDTH/4, width);
+				width  = bx::max(ENTRY_DEFAULT_WIDTH/4, width);
 				height = uint32_t(float(width)*aspectRatio);
 
 				left   = newrect.left+(newrect.right -newrect.left-width)/2;
@@ -1191,7 +1211,11 @@ namespace entry
 int main(int _argc, const char* const* _argv)
 {
 	using namespace entry;
-	return s_ctx.run(_argc, _argv);
+
+	bx::DefaultAllocator allocator;
+	bx::CommandLineArgs args(&allocator, _argc, _argv);
+
+	return s_ctx.run(args.getArgc(), args.getArgv() );
 }
 
 #endif // BX_PLATFORM_WINDOWS

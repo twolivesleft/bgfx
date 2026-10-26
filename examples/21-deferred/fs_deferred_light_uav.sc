@@ -1,7 +1,7 @@
 $input v_texcoord0
 
 /*
- * Copyright 2011-2025 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2026 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
  */
 
@@ -24,9 +24,7 @@ void main()
 	float depth       = toClipSpaceDepth(deviceDepth);
 
 	vec3 clip = vec3(v_texcoord0 * 2.0 - 1.0, depth);
-#if !BGFX_SHADER_LANGUAGE_GLSL
-	clip.y = -clip.y;
-#endif // !BGFX_SHADER_LANGUAGE_GLSL
+	clip.y = toClipSpaceY(clip.y);
 	vec3 wpos = clipToWorld(u_mtx, clip);
 
 	vec3 view = mul(u_view, vec4(wpos, 0.0) ).xyz;

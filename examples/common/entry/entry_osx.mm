@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2025 Branimir Karadzic. All rights reserved.
+ * Copyright 2011-2026 Branimir Karadzic. All rights reserved.
  * License: https://github.com/bkaradzic/bgfx/blob/master/LICENSE
  */
 
@@ -9,9 +9,8 @@
 
 #import <Cocoa/Cocoa.h>
 
-#include <bgfx/platform.h>
+#include <bgfx/bgfx.h>
 
-#include <bx/uint32_t.h>
 #include <bx/thread.h>
 #include <bx/os.h>
 #include <bx/handlealloc.h>
@@ -65,7 +64,8 @@ namespace entry
 					char path[PATH_MAX];
 					if (CFURLGetFileSystemRepresentation(resourcesURL, TRUE, (UInt8*)path, PATH_MAX) )
 					{
-						chdir(path);
+						// This breaks console apps, but it's not needed on windowed.
+						//chdir(path);
 					}
 
 					CFRelease(resourcesURL);
@@ -74,7 +74,12 @@ namespace entry
 
 			MainThreadEntry* self = (MainThreadEntry*)_userData;
 			uint32_t result = main(self->m_argc, self->m_argv);
-			[NSApp terminate:nil];
+
+			dispatch_async(dispatch_get_main_queue()
+				, ^(void){
+					[NSApp terminate:nil];
+				});
+
 			return result;
 		}
 	};
@@ -279,6 +284,8 @@ namespace entry
 			case NSPageDownFunctionKey:    return Key::PageDown;
 			case NSHomeFunctionKey:        return Key::Home;
 			case NSEndFunctionKey:         return Key::End;
+			case NSInsertFunctionKey:      return Key::Insert;
+			case NSDeleteFunctionKey:      return Key::Delete;
 
 			case NSPrintScreenFunctionKey: return Key::Print;
 			}
@@ -373,9 +380,11 @@ namespace entry
 						// Returning false means that we take care of the key (instead of the default behavior)
 						if (key != Key::None)
 						{
-							if (key == Key::KeyQ && (modifiers & Modifier::RightMeta) )
+							if (key == Key::KeyQ
+							&&  0 != (modifiers & (Modifier::LeftMeta | Modifier::RightMeta) ) )
 							{
-								m_eventQueue.postExitEvent();
+								[NSApp terminate:nil];
+								return false;
 							}
 							else
 							{
@@ -500,7 +509,7 @@ namespace entry
 			mte.m_argv = _argv;
 
 			bx::Thread thread;
-			thread.init(mte.threadFunc, &mte);
+			thread.init(mte.threadFunc, &mte, 0, "Entry Thread");
 
 			WindowHandle handle = { 0 };
 			NSRect contentRect = [m_window[0] contentRectForFrameRect: m_windowFrame];
