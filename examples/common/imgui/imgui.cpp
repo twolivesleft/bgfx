@@ -6,6 +6,7 @@
 #include <bgfx/bgfx.h>
 #include <bgfx/embedded_shader.h>
 #include <bx/allocator.h>
+#include <cstdlib>
 #include <bx/math.h>
 #include <bx/timer.h>
 #include <dear-imgui/imgui.h>
@@ -676,8 +677,9 @@ BX_PRAGMA_DIAGNOSTIC_IGNORED_CLANG_GCC("-Wtype-limits"); // warning: comparison 
 
 #	define STBTT_memcpy(_dst, _src, _numBytes) bx::memCopy(_dst, _src, _numBytes)
 #	define STBTT_memset(_dst, _ch, _numBytes)  bx::memSet(_dst, _ch, _numBytes)
-#	define STBTT_malloc(_size, _userData)      memAlloc(_size, _userData)
-#	define STBTT_free(_ptr, _userData)         memFree(_ptr, _userData)
+// The exported rasterizer is also used without an ImGui context by FontManager.
+#	define STBTT_malloc(_size, _userData)      std::malloc(_size)
+#	define STBTT_free(_ptr, _userData)         std::free(_ptr)
 
 #	define STB_RECT_PACK_IMPLEMENTATION
 #	include <stb/stb_rect_pack.h>
