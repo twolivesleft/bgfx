@@ -6050,13 +6050,17 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 
 	void TimerQueryMtl::addHandlers(MTL::CommandBuffer*& _commandBuffer, uint32_t _frameNum)
 	{
-		while (0 == m_control.reserve(1) )
+		// Slots are written on Metal's completion thread, so one still in flight can't be
+		// reclaimed. While the GPU is that far behind, frames go untimed.
+		if (0 == m_control.reserve(1) )
 		{
-			m_control.consume(1);
+			return;
 		}
 
 		const uint32_t offset      = m_control.m_current;
 		const uint32_t samplingIdx = m_samplingIdx;
+
+		bx::atomicStore<uint32_t>(&m_frameResult[offset].m_pending, 1);
 
 		_commandBuffer->addCompletedHandler(
 			MTL::HandlerFunction([this, offset, samplingIdx, _frameNum](MTL::CommandBuffer* _cmdBuf)
@@ -6068,6 +6072,9 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 				m_frameResult[offset].m_frameNum = _frameNum;
 
 				resolve(samplingIdx);
+
+				// Publishes the result to get().
+				bx::atomicStore<uint32_t>(&m_frameResult[offset].m_pending, 0);
 			})
 			);
 
@@ -6079,6 +6086,12 @@ static_assert(BX_COUNTOF(s_accessNames) == Access::Count, "Invalid s_accessNames
 		if (0 != m_control.getNumUsed() )
 		{
 			uint32_t offset = m_control.m_read;
+
+			if (0 != bx::atomicLoad(&m_frameResult[offset].m_pending) )
+			{
+				return false;
+			}
+
 			m_begin    = m_frameResult[offset].m_begin;
 			m_end      = m_frameResult[offset].m_end;
 			m_elapsed  = m_end - m_begin;
