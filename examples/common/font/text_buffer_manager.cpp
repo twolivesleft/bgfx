@@ -1005,7 +1005,7 @@ void TextBufferManager::destroyTextBuffer(TextBufferHandle _handle)
 	}
 }
 
-void TextBufferManager::submitTextBuffer(TextBufferHandle _handle, bgfx::ViewId _id, int32_t _depth)
+void TextBufferManager::submitTextBuffer(TextBufferHandle _handle, bgfx::ViewId _id, int32_t _depth, uint64_t _depthState)
 {
 	BX_ASSERT(isValid(_handle), "Invalid handle used");
 
@@ -1026,7 +1026,7 @@ void TextBufferManager::submitTextBuffer(TextBufferHandle _handle, bgfx::ViewId 
 	{
 	case FONT_TYPE_ALPHA:
 		program = m_basicProgram;
-		bgfx::setState(0
+		bgfx::setState(_depthState
 			| BGFX_STATE_WRITE_RGB
 			| BGFX_STATE_WRITE_A
 			| BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_INV_SRC_ALPHA)
@@ -1036,7 +1036,7 @@ void TextBufferManager::submitTextBuffer(TextBufferHandle _handle, bgfx::ViewId 
 	case FONT_TYPE_DISTANCE:
 	{
 		program = m_distanceProgram;
-		bgfx::setState(0
+		bgfx::setState(_depthState
 			| BGFX_STATE_WRITE_RGB
 			| BGFX_STATE_WRITE_A
 			| BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_INV_SRC_ALPHA)
@@ -1049,7 +1049,7 @@ void TextBufferManager::submitTextBuffer(TextBufferHandle _handle, bgfx::ViewId 
 
 	case FONT_TYPE_DISTANCE_SUBPIXEL:
 		program = m_distanceSubpixelProgram;
-		bgfx::setState(0
+		bgfx::setState(_depthState
 			| BGFX_STATE_WRITE_RGB
 			| BGFX_STATE_WRITE_A
 			| BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_FACTOR, BGFX_STATE_BLEND_INV_SRC_COLOR)
@@ -1060,7 +1060,7 @@ void TextBufferManager::submitTextBuffer(TextBufferHandle _handle, bgfx::ViewId 
 	case FONT_TYPE_DISTANCE_OUTLINE:
 	{
 		program = m_distanceOutlineProgram;
-		bgfx::setState(0
+		bgfx::setState(_depthState
 			| BGFX_STATE_WRITE_RGB
 			| BGFX_STATE_WRITE_A
 			| BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_INV_SRC_ALPHA)
@@ -1074,7 +1074,7 @@ void TextBufferManager::submitTextBuffer(TextBufferHandle _handle, bgfx::ViewId 
 	case FONT_TYPE_DISTANCE_OUTLINE_IMAGE:
 	{
 		program = m_distanceOutlineImageProgram;
-		bgfx::setState(0
+		bgfx::setState(_depthState
 			| BGFX_STATE_WRITE_RGB
 			| BGFX_STATE_WRITE_A
 			| BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_INV_SRC_ALPHA)
@@ -1088,7 +1088,7 @@ void TextBufferManager::submitTextBuffer(TextBufferHandle _handle, bgfx::ViewId 
 	case FONT_TYPE_DISTANCE_DROP_SHADOW:
 	{
 		program = m_distanceDropShadowProgram;
-		bgfx::setState(0
+		bgfx::setState(_depthState
 			| BGFX_STATE_WRITE_RGB
 			| BGFX_STATE_WRITE_A
 			| BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_INV_SRC_ALPHA)
@@ -1106,7 +1106,7 @@ void TextBufferManager::submitTextBuffer(TextBufferHandle _handle, bgfx::ViewId 
 	case FONT_TYPE_DISTANCE_DROP_SHADOW_IMAGE:
 	{
 		program = m_distanceDropShadowImageProgram;
-		bgfx::setState(0
+		bgfx::setState(_depthState
 			| BGFX_STATE_WRITE_RGB
 			| BGFX_STATE_WRITE_A
 			| BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_INV_SRC_ALPHA)
@@ -1124,7 +1124,7 @@ void TextBufferManager::submitTextBuffer(TextBufferHandle _handle, bgfx::ViewId 
 	case FONT_TYPE_DISTANCE_OUTLINE_DROP_SHADOW_IMAGE:
 	{
 		program = m_distanceOutlineDropShadowImageProgram;
-		bgfx::setState(0
+		bgfx::setState(_depthState
 			| BGFX_STATE_WRITE_RGB
 			| BGFX_STATE_WRITE_A
 			| BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_INV_SRC_ALPHA)
