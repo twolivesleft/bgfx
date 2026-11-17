@@ -3099,6 +3099,12 @@ VK_IMPORT_DEVICE
 			recycleMemory(stagingMemory);
 		}
 
+		void generateMipmaps(TextureHandle _handle) override
+		{
+			TextureVK& texture = m_textures[_handle.idx];
+			texture.resolve(m_commandBuffer, BGFX_ATTACHMENT_AUTO_GEN_MIPS, 0, texture.m_numSides, 0, true);
+		}
+
 		void resizeTexture(TextureHandle _handle, uint16_t _width, uint16_t _height, uint8_t _numMips, uint16_t _numLayers) override
 		{
 			const TextureVK& texture = m_textures[_handle.idx];
@@ -8415,7 +8421,7 @@ VK_DESTROY
 		}
 	}
 
-	void TextureVK::resolve(VkCommandBuffer _commandBuffer, uint8_t _resolve, uint32_t _layer, uint32_t _numLayers, uint32_t _mip)
+	void TextureVK::resolve(VkCommandBuffer _commandBuffer, uint8_t _resolve, uint32_t _layer, uint32_t _numLayers, uint32_t _mip, bool _forceMipGen)
 	{
 		BGFX_PROFILER_SCOPE("TextureVK::resolve", kColorResource);
 
@@ -8423,7 +8429,7 @@ VK_DESTROY
 
 		const bool needMipGen = true
 			&& !needResolve
-			&& 0 != (m_flags & BGFX_TEXTURE_RT_MASK)
+			&& (_forceMipGen || 0 != (m_flags & BGFX_TEXTURE_RT_MASK))
 			&& 0 == (m_flags & BGFX_TEXTURE_RT_WRITE_ONLY)
 			&& (_mip + 1) < m_numMips
 			&& 0 != (_resolve & BGFX_ATTACHMENT_AUTO_GEN_MIPS)
@@ -8579,6 +8585,7 @@ VK_DESTROY
 
 			int32_t mipWidth  = bx::max<int32_t>(int32_t(m_width)  >> _mip, 1);
 			int32_t mipHeight = bx::max<int32_t>(int32_t(m_height) >> _mip, 1);
+			int32_t mipDepth  = bx::max<int32_t>(int32_t(m_depth)  >> _mip, 1);
 
 			const VkFilter filter = bimg::isDepth(bimg::TextureFormat::Enum(m_textureFormat) )
 				? VK_FILTER_NEAREST
@@ -8587,13 +8594,13 @@ VK_DESTROY
 
 			VkImageBlit blit;
 			blit.srcOffsets[0] = { 0, 0, 0 };
-			blit.srcOffsets[1] = { mipWidth, mipHeight, 1 };
+			blit.srcOffsets[1] = { mipWidth, mipHeight, mipDepth };
 			blit.srcSubresource.aspectMask     = m_aspectFlags;
 			blit.srcSubresource.mipLevel       = 0;
 			blit.srcSubresource.baseArrayLayer = baseLayer;
 			blit.srcSubresource.layerCount     = numLayers;
 			blit.dstOffsets[0] = { 0, 0, 0 };
-			blit.dstOffsets[1] = { mipWidth, mipHeight, 1 };
+			blit.dstOffsets[1] = { mipWidth, mipHeight, mipDepth };
 			blit.dstSubresource.aspectMask     = m_aspectFlags;
 			blit.dstSubresource.mipLevel       = 0;
 			blit.dstSubresource.baseArrayLayer = baseLayer;
@@ -8603,13 +8610,14 @@ VK_DESTROY
 			{
 				BGFX_PROFILER_SCOPE("Mipmap", kColorResource);
 
-				blit.srcOffsets[1] = { mipWidth, mipHeight, 1 };
+				blit.srcOffsets[1] = { mipWidth, mipHeight, mipDepth };
 				blit.srcSubresource.mipLevel = i - 1;
 
 				mipWidth  = bx::max(mipWidth  >> 1, 1);
 				mipHeight = bx::max(mipHeight >> 1, 1);
+				mipDepth  = bx::max(mipDepth  >> 1, 1);
 
-				blit.dstOffsets[1] = { mipWidth, mipHeight, 1 };
+				blit.dstOffsets[1] = { mipWidth, mipHeight, mipDepth };
 				blit.dstSubresource.mipLevel = i;
 
 				setImageMemoryBarrier(
