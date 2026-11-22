@@ -499,9 +499,10 @@ static_assert(BGFX_CONFIG_MAX_VERTEX_STREAMS < 32, "Must be less than 32!");
 #	define BGFX_CONFIG_MAX_TEXTURE_SAMPLERS 16
 #endif // BGFX_CONFIG_MAX_TEXTURE_SAMPLERS
 
-/// Maximum number of frame buffer handles. Default is 128.
+/// Maximum number of frame buffer handles. Default is 128. Matches the texture
+/// limit, so every render target texture can have a frame buffer.
 #ifndef BGFX_CONFIG_MAX_FRAME_BUFFERS
-#	define BGFX_CONFIG_MAX_FRAME_BUFFERS 512
+#	define BGFX_CONFIG_MAX_FRAME_BUFFERS BGFX_CONFIG_MAX_TEXTURES
 #endif // BGFX_CONFIG_MAX_FRAME_BUFFERS
 
 /// Maximum number of attachments (color + depth/stencil) per frame buffer.
